@@ -13,6 +13,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:1080px;margin:0 auto;padding:20px 16px 40px}
 h1{font-size:1.6rem;font-weight:800;margin:0 0 2px;letter-spacing:-.01em}
+.by{margin:2px 0 10px;color:var(--mute);font-size:.9rem;line-height:1.35}.by b{color:var(--ink)}
 .sub{color:var(--mute);margin:0 0 18px}
 .grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:16px}
 @media(max-width:800px){.grid{grid-template-columns:1fr}}
@@ -58,6 +59,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </style></head>
 <body><main>
 <h1>Capital budgeting simulator</h1>
+<p class="by"><b>Kawser Ahmed Shiblu</b><br>Wayne State University</p>
 <p class="sub">Change an assumption, predict what happens to NPV, then see the result.</p>
 <div class="grid">
 <div>
@@ -65,7 +67,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <div id="sliders"></div>
   <p class="mute">Net cash flows already include everything (taxes, working capital, disposal). Year 0 is the investment; later cash flows arrive at year-end. Figures in $ thousands.</p>
  </div>
- <div class="card"><h2>Scenarios</h2><div class="btns" id="scen"></div></div>
+ <div class="card"><h2>Scenarios</h2><div class="btns" id="scen"></div><div class="btns" style="margin-top:8px"><button id="reset">Reset all</button></div><p class="mute" id="score" style="margin:8px 0 0"></p></div>
 </div>
 <div>
  <div class="card" id="pcard" hidden></div>
@@ -75,13 +77,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <div class="scroll" style="margin-top:12px"><table id="tbl"></table></div>
  </div>
  <div class="card"><h2>NPV profile</h2><div id="chart"></div><p class="mute">NPV at different discount rates. Where the line crosses zero is the IRR.</p></div>
- <div class="card" id="aicard"><h2>Chat support</h2><p class="mute" style="margin-top:0" id="aist">Checking AI connection...</p><div id="chatlog" aria-live="polite"></div><div class="btns"><button data-q="Explain in 3 sentences what drives this NPV.">Explain this result</button><button data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Give me scenarios</button><button data-q="Check my explanation for the last change and tell me what is right and what is missing.">Check my explanation</button></div><textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea><div class="btns" style="margin-top:8px"><button class="primary" id="aisend">Send</button><button id="aiclear">New chat</button></div></div>
- <div class="card" id="lcard" hidden><div class="top"><h2>Session log</h2></div><div class="scroll"><table id="ltbl"></table></div><p class="mute" id="lmsg">Your prediction and the actual result for each change.</p></div>
- <div class="card"><div class="top"><h2>AI prompt for this case</h2><span class="mute" id="score"></span></div>
-  <details><summary>Show prompt to paste into an AI chat</summary><textarea id="ptxt" rows="9" readonly></textarea></details>
-  <div class="btns" style="margin-top:8px"><button id="copy">Copy prompt</button><button id="reset">Reset all</button></div>
-  <p class="mute" id="cmsg"></p>
- </div>
+ <div class="card" id="aicard"><h2>Chat support</h2><p class="mute" style="margin-top:0" id="aist">Checking AI connection...</p><div id="chatlog" aria-live="polite"></div><div class="btns"><button data-q="Explain in 3 sentences what drives this NPV.">Explain this result</button><button data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Give me scenarios</button></div><textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea><div class="btns" style="margin-top:8px"><button class="primary" id="aisend">Send</button><button id="aiclear">New chat</button></div></div>
+ <textarea id="ptxt" hidden></textarea>
 </div></div>
 </main>
 <script>
@@ -150,8 +147,7 @@ function renderCards(){
   rc.className='card';rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?'+':''}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(x=>`<li><b>${x.p.l}</b> ${x.p.f(x.from)} to ${x.p.f(x.to)}: ${x.d>=0?'+':''}${money(x.d)}. ${REASON[x.p.k][x.up?0:1]}</li>`).join('')}</ul><div class="btns" style="margin-top:8px"><button id="done">Done</button></div>`;$('done').onclick=()=>{rev=null;update()}}
  else rc.hidden=true}
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function renderLog(){const c=$('lcard');c.hidden=!log.length;if(!log.length)return;$('ltbl').innerHTML='<tr><th>#</th><th>Change</th><th>Predicted</th><th>Actual</th><th>NPV ($k)</th></tr>'+log.map((e,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${esc(e.change)}</td><td>${e.pred}</td><td>${e.actual}</td><td>${e.from} to ${e.to}</td></tr>`).join('')}
-function update(){if($('instant').checked&&changed().length)commit(null);syncSliders();renderResult();renderCards();renderLog()}
+function update(){if($('instant').checked&&changed().length)commit(null);syncSliders();renderResult();renderCards()}
 const SC=[
 ['Rate hike (+3 points)',x=>({r:x.r+3})],
 ['Cost overrun (+25%)',x=>({capex:x.capex*1.25})],
@@ -163,7 +159,6 @@ $('scen').innerHTML=SC.map((s,i)=>`<button data-i="${i}">${s[0]}</button>`).join
 $('scen').querySelectorAll('button').forEach(b=>b.onclick=()=>{live={...cur};const c=SC[b.dataset.i][1](cur);P.forEach(p=>{if(c[p.k]!==undefined)live[p.k]=clamp(p,c[p.k])});rev=null;update()});
 $('instant').onchange=update;
 $('reset').onclick=()=>{cur=base();live=base();rev=null;right=0;total=0;log=[];update()};
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('ptxt').value);$('cmsg').textContent='Copied.'}catch(e){$('cmsg').textContent='Copy blocked here. Open "Show prompt" and copy it manually.'}};
 // Set this to your deployed Cloudflare Worker URL (see worker.js). Leave empty to hide chat.
 const CHAT_URL='https://capbud-chat.kshiblu.workers.dev';
 let hist=[],busy=false;
