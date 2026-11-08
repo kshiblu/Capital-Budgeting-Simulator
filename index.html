@@ -48,9 +48,6 @@ ul.drv{padding-left:18px;margin:8px 0}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 svg{width:100%;height:auto;display:block}
 svg text{fill:var(--mute);font-size:11px;font-family:inherit}
-#pcard,#rcard{position:sticky;top:8px;z-index:5;box-shadow:0 4px 16px rgba(0,0,0,.18)}
-@media(max-width:800px){#pcard,#rcard{position:fixed;left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));max-height:55vh;overflow:auto;margin:0;z-index:10}main{padding-bottom:50vh}}
-#pcard.idle{position:static;box-shadow:none;margin-bottom:16px}
 #pcard.idle h2{color:var(--ink)}
 button:disabled{opacity:.45;cursor:not-allowed}
 #chatlog{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin:8px 0}
@@ -79,7 +76,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
  </div>
  <div class="card"><h2>NPV profile</h2><div id="chart"></div><p class="mute">NPV at different discount rates. Where the line crosses zero is the IRR.</p></div>
  <div class="card" id="aicard"><h2>Chat support</h2><p class="mute" style="margin-top:0" id="aist">Checking AI connection...</p><div id="chatlog" aria-live="polite"></div><div class="btns"><button data-q="Explain in 3 sentences what drives this NPV.">Explain this result</button><button data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Give me scenarios</button><button data-q="Check my explanation for the last change and tell me what is right and what is missing.">Check my explanation</button></div><textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea><div class="btns" style="margin-top:8px"><button class="primary" id="aisend">Send</button><button id="aiclear">New chat</button></div></div>
- <div class="card" id="lcard" hidden><div class="top"><h2>Session log</h2><button id="dl">Download CSV</button></div><div class="scroll"><table id="ltbl"></table></div><p class="mute" id="lmsg">Prediction and explanation for each change. Use it as a reasoning record.</p></div>
+ <div class="card" id="lcard" hidden><div class="top"><h2>Session log</h2></div><div class="scroll"><table id="ltbl"></table></div><p class="mute" id="lmsg">Your prediction and the actual result for each change.</p></div>
  <div class="card"><div class="top"><h2>AI prompt for this case</h2><span class="mute" id="score"></span></div>
   <details><summary>Show prompt to paste into an AI chat</summary><textarea id="ptxt" rows="9" readonly></textarea></details>
   <div class="btns" style="margin-top:8px"><button id="copy">Copy prompt</button><button id="reset">Reset all</button></div>
@@ -150,11 +147,10 @@ function renderCards(){
  if(rev&&!ch.length){rc.hidden=false;const w={up:'rose',down:'fell',same:'barely moved'};
   const ok=rev.pred?(rev.pred===rev.actual?'<b class="pos">Correct.</b> ':'<b class="neg">Not quite.</b> You predicted '+({up:'a rise',down:'a fall',same:'no change'}[rev.pred])+'. '):'';
   const flip=(rev.from>=0)!==(rev.to>=0)?` <b>The decision flipped to ${rev.to>=0?'accept':'reject'}.</b>`:'';
-  rc.className='card';rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?'+':''}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(x=>`<li><b>${x.p.l}</b> ${x.p.f(x.from)} to ${x.p.f(x.to)}: ${x.d>=0?'+':''}${money(x.d)}. ${REASON[x.p.k][x.up?0:1]}</li>`).join('')}</ul><label for="why" class="mute">In one sentence, explain why:</label><textarea id="why" rows="2" placeholder="Saved to the session log below"></textarea><div class="btns" style="margin-top:8px"><button id="done">Done</button></div>`;$('why').value=rev.entry.why;$('why').oninput=e=>{rev.entry.why=e.target.value;renderLog()};$('done').onclick=()=>{rev=null;update()}}
+  rc.className='card';rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?'+':''}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(x=>`<li><b>${x.p.l}</b> ${x.p.f(x.from)} to ${x.p.f(x.to)}: ${x.d>=0?'+':''}${money(x.d)}. ${REASON[x.p.k][x.up?0:1]}</li>`).join('')}</ul><div class="btns" style="margin-top:8px"><button id="done">Done</button></div>`;$('done').onclick=()=>{rev=null;update()}}
  else rc.hidden=true}
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function renderLog(){const c=$('lcard');c.hidden=!log.length;if(!log.length)return;$('ltbl').innerHTML='<tr><th>#</th><th>Change</th><th>Predicted</th><th>Actual</th><th>NPV ($k)</th><th>Explanation</th></tr>'+log.map((e,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${esc(e.change)}</td><td>${e.pred}</td><td>${e.actual}</td><td>${e.from} to ${e.to}</td><td style="text-align:left">${e.why?esc(e.why):'<span class="mute">none</span>'}</td></tr>`).join('')}
-function csv(){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';return ['Change,Predicted,Actual,NPV before,NPV after,Explanation'].concat(log.map(e=>[e.change,e.pred,e.actual,e.from,e.to,e.why].map(q).join(','))).join('\n')}
+function renderLog(){const c=$('lcard');c.hidden=!log.length;if(!log.length)return;$('ltbl').innerHTML='<tr><th>#</th><th>Change</th><th>Predicted</th><th>Actual</th><th>NPV ($k)</th></tr>'+log.map((e,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${esc(e.change)}</td><td>${e.pred}</td><td>${e.actual}</td><td>${e.from} to ${e.to}</td></tr>`).join('')}
 function update(){if($('instant').checked&&changed().length)commit(null);syncSliders();renderResult();renderCards();renderLog()}
 const SC=[
 ['Rate hike (+3 points)',x=>({r:x.r+3})],
@@ -185,7 +181,5 @@ $('aiq').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(
 $('aiclear').onclick=()=>{hist=[];$('chatlog').innerHTML=''};
 function setAI(on,msg){document.querySelectorAll('#aicard button,#aiq').forEach(b=>b.disabled=!on);$('aist').textContent=msg}
 if(CHAT_URL)setAI(true,'Ask anything. The assistant sees your current numbers but never recalculates them.');else{$('aicard').hidden=true}
-$('dl').onclick=async()=>{try{if(window.claude){const d=await claude.use('downloads');if(d){await d.save({filename:'prediction-log.csv',data:csv()});return}}}catch(e){if(e&&e.code==='declined')return}
-try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv()],{type:'text/csv'}));a.download='prediction-log.csv';a.click()}catch(e){$('lmsg').textContent='Download blocked here. Open the saved file in your browser instead.'}};
 buildSliders();update();
 </script></body></html>
