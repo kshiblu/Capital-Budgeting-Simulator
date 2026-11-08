@@ -66,7 +66,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <div>
  <div class="card"><div class="top"><h2>Assumptions</h2><label class="mute"><input type="checkbox" id="instant"> Update instantly (skip prediction)</label></div>
   <div id="sliders"></div>
-  <p class="mute">Fixed: 5-year life, 25% tax, straight-line depreciation, no salvage value. Figures in $ thousands.</p>
+  <p class="mute">Net cash flows already include everything (taxes, working capital, disposal). Year 0 is the investment; later cash flows arrive at year-end. Figures in $ thousands.</p>
  </div>
  <div class="card"><h2>Scenarios</h2><div class="btns" id="scen"></div></div>
 </div>
@@ -89,17 +89,18 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </main>
 <script>
 const P=[
-{k:'capex',l:'Initial investment',min:500,max:2000,st:50,v:1000,f:v=>'$'+v.toLocaleString()+'k'},
-{k:'sales',l:'Year-1 sales',min:400,max:1400,st:25,v:800,f:v=>'$'+v.toLocaleString()+'k'},
-{k:'g',l:'Sales growth per year',min:-10,max:20,st:1,v:5,f:v=>v+'%'},
-{k:'m',l:'Operating margin before depreciation',min:15,max:50,st:1,v:35,f:v=>v+'%'},
-{k:'r',l:'Cost of capital',min:4,max:20,st:.5,v:10,f:v=>v+'%'}];
-const T=.25,N=5;
+{k:'capex',l:'Initial investment (Year 0)',min:500,max:2000,st:50,v:1000,f:v=>'$'+v.toLocaleString()+'k'},
+{k:'cf',l:'Year-1 net cash flow',min:100,max:600,st:25,v:300,f:v=>'$'+v.toLocaleString()+'k'},
+{k:'g',l:'Cash flow growth per year',min:-10,max:20,st:1,v:0,f:v=>v+'%'},
+{k:'n',l:'Project life',min:2,max:10,st:1,v:5,f:v=>v+' years'},
+{k:'tv',l:'Extra cash flow in final year',min:0,max:1000,st:50,v:0,f:v=>'$'+v.toLocaleString()+'k'},
+{k:'r',l:'Required return',min:4,max:20,st:.5,v:10,f:v=>v+'%'},
+{k:'cut',l:'Payback cutoff',min:1,max:8,st:.5,v:3,f:v=>v+' yrs'}];
 const base=()=>Object.fromEntries(P.map(p=>[p.k,p.v]));
 let cur=base(),live=base(),rev=null,right=0,total=0,log=[];
 const $=id=>document.getElementById(id);
 const money=n=>(n<0?'\u2212':'')+'$'+Math.abs(Math.round(n)).toLocaleString()+'k';
-function flows(x){const D=x.capex/N,a=[];for(let t=0;t<N;t++){const s=x.sales*Math.pow(1+x.g/100,t);a.push((x.m/100*s-D)*(1-T)+D)}return a}
+function flows(x){const a=[];for(let t=0;t<x.n;t++)a.push(x.cf*Math.pow(1+x.g/100,t)+(t===x.n-1?x.tv:0));return a}
 function npv(x,r){r=r===undefined?x.r/100:r;return flows(x).reduce((s,c,i)=>s+c/Math.pow(1+r,i+1),-x.capex)}
 function irr(x){let lo=-.9,hi=1;const f=r=>npv(x,r);if(f(lo)*f(hi)>0)return null;for(let i=0;i<80;i++){const m=(lo+hi)/2;if(f(lo)*f(m)<=0)hi=m;else lo=m}return(lo+hi)/2}
 function payback(x){let c=-x.capex;const fl=flows(x);for(let i=0;i<fl.length;i++){if(c+fl[i]>=0)return i+(-c)/fl[i];c+=fl[i]}return null}
@@ -107,11 +108,13 @@ function dpayback(x){let c=-x.capex;const fl=flows(x);for(let i=0;i<fl.length;i+
 const clamp=(p,v)=>Math.min(p.max,Math.max(p.min,v));
 const changed=()=>P.filter(p=>live[p.k]!==cur[p.k]);
 const REASON={
-capex:[ 'Costs more today; the extra depreciation tax shield recovers only part of it.','Costs less today; a smaller depreciation tax shield offsets only part of the saving.'],
-sales:['Higher sales lift cash flow in every year.','Lower sales reduce cash flow in every year.'],
-g:['Growth compounds, so the later years gain the most.','Slower growth compounds too, so the later years lose the most.'],
-m:['More of each sales dollar becomes profit, taxed at 25%.','Less of each sales dollar becomes profit, taxed at 25%.'],
-r:['Every cash flow is discounted harder, and distant years lose the most.','Every cash flow is discounted less, and distant years gain the most.']};
+capex:['Costs more at Year 0, with the same future cash flows, so NPV falls.','Costs less at Year 0, with the same future cash flows, so NPV rises.'],
+cf:['Every year\'s cash flow is larger, so PV of inflows rises.','Every year\'s cash flow is smaller, so PV of inflows falls.'],
+g:['Faster growth raises later cash flows the most, and later cash flows are discounted the most.','Slower growth lowers later cash flows the most.'],
+n:['Extra years add more positive cash flows, each discounted back to today.','Fewer years drop later cash flows, so less value is counted.'],
+tv:['A larger final-year cash flow adds value, but it is discounted for the whole project life.','A smaller final-year cash flow removes value, but it was heavily discounted.'],
+r:['Every cash flow is discounted harder, and distant years lose the most.','Every cash flow is discounted less, and distant years gain the most.'],
+cut:['A longer cutoff is management\'s benchmark only. It does not change any cash flow, so NPV does not move.','A shorter cutoff is management\'s benchmark only. It does not change any cash flow, so NPV does not move.']};
 function buildSliders(){$('sliders').innerHTML=P.map(p=>`<div class="row" id="row-${p.k}"><label for="s-${p.k}"><span>${p.l}</span><output id="o-${p.k}"></output></label><input type="range" id="s-${p.k}" min="${p.min}" max="${p.max}" step="${p.st}"></div>`).join('');
 P.forEach(p=>{const s=$('s-'+p.k);s.value=live[p.k];s.oninput=()=>{live[p.k]=+s.value;rev=null;update()}})}
 function syncSliders(){P.forEach(p=>{const s=$('s-'+p.k);s.value=live[p.k];const ch=live[p.k]!==cur[p.k];$('row-'+p.k).className='row'+(ch?' chg':'');$('o-'+p.k).innerHTML=ch?`${p.f(live[p.k])} <small>(was ${p.f(cur[p.k])})</small>`:p.f(live[p.k])})}
@@ -125,8 +128,9 @@ function commit(pred){
 function renderResult(){
  const n=npv(cur),i=irr(cur),pb=payback(cur),dp=dpayback(cur),fl=flows(cur);
  $('tiles').innerHTML=`<div class="tile"><span>NPV</span><b class="${n>=0?'pos':'neg'}">${money(n)}</b></div><div class="tile"><span>Payback</span><b>${pb===null?'never':pb.toFixed(1)+' yr'}</b></div><div class="tile"><span>Discounted payback</span><b>${dp===null?'never':dp.toFixed(1)+' yr'}</b></div><div class="tile"><span>IRR</span><b>${i===null?'n/a':(i*100).toFixed(1)+'%'}</b></div>`;
- const dc=$('dec');dc.className='decision '+(n>=0?'pos':'neg');dc.textContent=n>=0?'Accept: NPV is positive, so the project adds value.':'Reject: NPV is negative, so the project destroys value.';
- $('tbl').innerHTML='<tr><th>Year</th>'+fl.map((_,t)=>`<th>${t+1}</th>`).join('')+'</tr><tr><td>Cash flow</td>'+fl.map(c=>`<td>${Math.round(c)}</td>`).join('')+'</tr><tr><td>Present value</td>'+fl.map((c,t)=>`<td>${Math.round(c/Math.pow(1+cur.r/100,t+1))}</td>`).join('')+'</tr>';
+ const dc=$('dec');dc.className='decision '+(n>=0?'pos':'neg');const sc=v=>v===null?'never, fail':v.toFixed(1)+' yrs, '+(v<cur.cut?'pass':'fail');
+ dc.innerHTML=(n>=0?'Accept: NPV is positive, so the project adds value.':'Reject: NPV is negative, so the project destroys value.')+`<div class="mute" style="font-weight:400;margin-top:4px">Secondary screens: payback ${sc(pb)} (cutoff ${cur.cut} yrs); discounted payback ${sc(dp)}; IRR ${i===null?'n/a':(i*100).toFixed(1)+'% vs r '+cur.r+'%, '+(i>cur.r/100?'pass':'fail')}. NPV decides.</div>`;
+ const all=[-cur.capex].concat(fl);$('tbl').innerHTML='<tr><th>Year</th>'+all.map((_,t)=>`<th>${t}</th>`).join('')+'</tr><tr><td>Cash flow</td>'+all.map(c=>`<td>${Math.round(c)}</td>`).join('')+'</tr><tr><td>Present value</td>'+all.map((c,t)=>`<td>${Math.round(c/Math.pow(1+cur.r/100,t))}</td>`).join('')+'</tr>';
  // chart
  const W=400,H=190,L=44,B=24,pts=[];for(let r=0;r<=25;r+=.5)pts.push([r,npv(cur,r/100)]);
  const ys=pts.map(p=>p[1]).concat([0]),mn=Math.min(...ys),mx=Math.max(...ys);
@@ -134,7 +138,7 @@ function renderResult(){
  const path=pts.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');
  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="NPV profile"><line x1="${L}" x2="${W-8}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="${X(cur.r)}" cy="${Y(n)}" r="5" fill="${n>=0?'var(--ok)':'var(--bad)'}"/><text x="${L}" y="${H-6}">0%</text><text x="${X(12.5)-8}" y="${H-6}">12.5%</text><text x="${W-30}" y="${H-6}">25%</text><text x="2" y="${Y(mx)+10}">${Math.round(mx)}</text><text x="2" y="${Y(mn)}">${Math.round(mn)}</text></svg>`;
  $('score').textContent=total?`Predictions correct: ${right} of ${total}`:'';
- $('ptxt').value=`You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${cur.capex}k, year-1 sales $${cur.sales}k growing ${cur.g}%/yr, operating margin ${cur.m}% before depreciation, 5 years, 25% tax, straight-line depreciation.\nCost of capital ${cur.r}%. Results from my Excel model: NPV ${money(n)}, IRR ${i===null?'n/a':(i*100).toFixed(1)+'%'}, payback ${pb===null?'never':pb.toFixed(1)+' yrs'}, discounted payback ${dp===null?'never':dp.toFixed(1)+' yrs'}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}. Ask me why in one question before explaining.\n`:''}Tasks: (1) explain what drives this NPV in 3 sentences; (2) give 3 realistic business scenarios with specific new values for the inputs above; (3) ask me to predict the effect of each before I run it.`}
+ $('ptxt').value=`You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${cur.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${cur.cf}k in year 1 growing ${cur.g}%/yr for ${cur.n} years, plus an extra $${cur.tv}k in the final year. Payback cutoff ${cur.cut} years.\nCost of capital ${cur.r}%. Results from my Excel model: NPV ${money(n)}, IRR ${i===null?'n/a':(i*100).toFixed(1)+'%'}, payback ${pb===null?'never':pb.toFixed(1)+' yrs'}, discounted payback ${dp===null?'never':dp.toFixed(1)+' yrs'}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}. Ask me why in one question before explaining.\n`:''}Tasks: (1) explain what drives this NPV in 3 sentences; (2) give 3 realistic business scenarios with specific new values for the inputs above; (3) ask me to predict the effect of each before I run it.`}
 function renderCards(){
  const ch=changed(),pc=$('pcard'),rc=$('rcard');
  pc.hidden=false;
@@ -155,8 +159,10 @@ function update(){if($('instant').checked&&changed().length)commit(null);syncSli
 const SC=[
 ['Rate hike (+3 points)',x=>({r:x.r+3})],
 ['Cost overrun (+25%)',x=>({capex:x.capex*1.25})],
-['Recession',x=>({sales:x.sales*.85,g:-4,m:x.m-5})],
-['Strong launch',x=>({sales:x.sales*1.1,g:12})]];
+['Recession',x=>({cf:x.cf*.85,g:-4})],
+['Strong launch',x=>({cf:x.cf*1.1,g:12})],
+['Project cut short (3 years)',x=>({n:3})],
+['Big final-year payoff',x=>({tv:500})]];
 $('scen').innerHTML=SC.map((s,i)=>`<button data-i="${i}">${s[0]}</button>`).join('');
 $('scen').querySelectorAll('button').forEach(b=>b.onclick=()=>{live={...cur};const c=SC[b.dataset.i][1](cur);P.forEach(p=>{if(c[p.k]!==undefined)live[p.k]=clamp(p,c[p.k])});rev=null;update()});
 $('instant').onchange=update;
