@@ -163,7 +163,7 @@ $('instant').onchange=update;
 $('reset').onclick=()=>{cur=base();live=base();rev=null;right=0;total=0;log=[];update()};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('ptxt').value);$('cmsg').textContent='Copied.'}catch(e){$('cmsg').textContent='Copy blocked here. Open "Show prompt" and copy it manually.'}};
 // Set this to your deployed Cloudflare Worker URL (see worker.js). Leave empty to hide chat.
-const CHAT_URL='';
+const CHAT_URL='https://capbud-chat.kshiblu.workers.dev';
 let hist=[],busy=false;
 function addMsg(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;const l=$('chatlog');l.appendChild(d);l.scrollTop=l.scrollHeight;return d}
 async function ask(q){if(!CHAT_URL||busy)return;busy=true;addMsg('user',q);const out=addMsg('ai','Thinking...');hist.push({role:'user',content:q});hist=hist.slice(-12);if(hist[0].role!=='user')hist.shift();
