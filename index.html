@@ -83,6 +83,9 @@ svg text{font-family:'Nunito Sans',Arial,sans-serif}
 .msg.user{align-self:flex-end;background:var(--navy);color:var(--cream)}
 .msg.ai{align-self:flex-start;background:var(--mint);color:var(--navy)}
 textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;resize:vertical}
+/* why box */
+.why{width:100%;margin:4px 0 10px}
+.myway{background:#fff;border-left:4px solid var(--teal);padding:8px 12px;border-radius:8px;margin:8px 0}
 </style>
 </head>
 <body>
@@ -146,12 +149,12 @@ textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px so
       <div class="tablewrap"><table id="tbl"></table></div>
     </section>
     <section class="card" id="aicard">
-      <h2>Chat support</h2>
+      <h2>Ask the CFO</h2>
       <p class="note" style="margin-top:0" id="aist">Checking AI connection...</p>
       <div id="chatlog" aria-live="polite"></div>
       <div class="btns" style="margin-top:8px">
-        <button class="b-teal" data-q="Explain in 3 sentences what drives this NPV.">Explain this result</button>
-        <button class="b-teal" data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Give me scenarios</button>
+        <button class="b-teal" data-q="Explain in 3 sentences what drives this NPV.">Brief me, CFO</button>
+        <button class="b-teal" data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Enrich me with scenarios</button>
       </div>
       <textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea>
       <div class="btns" style="margin-top:8px"><button class="b-dark" id="aisend">Send</button><button class="b-light" id="aiclear">New chat</button></div>
@@ -178,7 +181,7 @@ const SHP=[
 ];
 const CASE={capex:1000,cf:300,g:0,n:5,tv:0,r:10,cut:3,ovr:{}};
 const base=()=>JSON.parse(JSON.stringify(CASE));
-let cur=base(), live=base(), rev=null, right=0, total=0, log=[];
+let cur=base(), live=base(), rev=null, right=0, total=0, log=[], whyDraft="";
 const SH0={units:1,shares:10};
 let SH=Object.assign({},SH0);
 const $=id=>document.getElementById(id);
@@ -187,6 +190,7 @@ const lab=(p,v)=>(p.pre||"")+(p.pre==="$"?Number(v).toLocaleString("en-US",{maxi
 const money=v=>{if(!isFinite(v))return "—";const d=Math.round(v*1000);return (d<0?"−$":"$")+Math.abs(d).toLocaleString("en-US")};
 const clampP=(p,v,fine)=>{if(fine){v=(p.k==="n")?Math.round(v):+v.toFixed(6)}else{const d=(String(p.st).split(".")[1]||"").length;v=+(Math.round(v/p.st)*p.st).toFixed(d)}return Math.min(p.max,Math.max(p.min,v))};
 const sameOvr=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- finance ---------- */
 function flows(x){const a=[-x.capex];for(let t=1;t<=x.n;t++){let c=(t in x.ovr)?x.ovr[t]:x.cf*Math.pow(1+x.g/100,t-1);if(t===x.n)c+=x.tv;a.push(c)}return a}
@@ -217,6 +221,7 @@ const TOL=0.5; // $500 counts as "about the same"
 const ZT=0.0005; // |NPV| below $0.50 is treated as exactly zero
 const sgn=v=>v>ZT?1:(v<-ZT?-1:0);
 function commit(pred){
+ const why=pred?whyDraft.trim():"";whyDraft="";
  const from=npv(cur),ch=changed();
  const drivers=ch.map(p=>{const alt=JSON.parse(JSON.stringify(cur));if(p.k==="ovr")alt.ovr=JSON.parse(JSON.stringify(live.ovr));else alt[p.k]=live[p.k];if(p.k==="n"){for(const y in alt.ovr)if(+y>alt.n)delete alt.ovr[y]}
   return{p,up:p.k==="ovr"?true:live[p.k]>cur[p.k],from:cur[p.k],to:live[p.k],d:npv(alt)-from}});
@@ -224,7 +229,7 @@ function commit(pred){
  const actual=d>TOL?"up":d<-TOL?"down":"same";
  log.push({change:ch.map(p=>p.k==="ovr"?p.l:p.l+": "+lab(p,drivers.find(x=>x.p===p).from)+" to "+lab(p,live[p.k])).join("; "),pred:pred||"none",actual});
  if(pred){total++;if(pred===actual)right++}
- rev={pred,actual,from,to,d,drivers};update()}
+ rev={pred,actual,from,to,d,drivers,why};update()}
 
 /* ---------- field widgets ---------- */
 function buildField(p,host,isShare){
@@ -309,7 +314,7 @@ function renderBreak(x,n,I){
  rows.push(["n",beN,"Project life",x.n+" yrs",beN===null?"Over 50 yrs":beN+" yrs (shortest life with NPV ≥ 0)",beN===null?"—":(beN<x.n?(x.n-beN)+" yr"+(x.n-beN>1?"s":"")+" of cushion":beN===x.n?"No cushion":"Needs "+(beN-x.n)+" more yr"+(beN-x.n>1?"s":""))]);
  // Extra final-year cash flow
  const beTV=Math.abs(n)<ZT?x.tv:x.tv-n*Math.pow(1+x.r/100,x.n);
- rows.push(["tv",beTV>x.tv?beTV:null,"Extra cash flow in final year","$"+(+x.tv).toLocaleString("en-US",{maximumFractionDigits:4})+"K",beTV<=x.tv?(x.tv>0?kK(Math.max(beTV,0)):"Not needed (NPV ≥ 0 without it)"):kK(beTV),beTV<=x.tv?(x.tv>0?(beTV<=0?"Not needed at all":pc(beTV,x.tv,true)):"—"):"Needs +"+kK(beTV-x.tv).replace("−","")]);
+ rows.push(["tv",beTV>x.tv?beTV:null,"Extra cash flow in final year","$"+(+x.tv).toLocaleString("en-US",{maximumFractionDigits:4})+"K",beTV<=x.tv?(Math.abs(n)<ZT?kK(x.tv):(x.tv>0?kK(Math.max(beTV,0)):"None needed: NPV is already positive")):kK(beTV),beTV<=x.tv?(Math.abs(n)<ZT?"At break-even":(x.tv>0?(beTV<=0?"Can drop to $0K":pc(beTV,x.tv,true)):"—")):"Needs +"+kK(beTV-x.tv).replace("−","")]);
  let h=`<tr><th>Input</th><th>Current</th><th>Break-even</th><th>Margin of safety</th><th></th></tr>`;
  rows.forEach((r,i)=>{const p=P.find(q=>q.k===r[0]);
   const atBE=Math.abs(n)<ZT;if(atBE&&r[5]!=="—")r[5]="At break-even";
@@ -340,14 +345,15 @@ function renderShare(n){
 function renderCards(){
  const ch=changed(),pc=$("pcard"),rc=$("rcard"),on=$("predictOn").checked;
  if(ch.length&&on){pc.className="card predict";
-  pc.innerHTML=`<h2>Predict before you see it</h2><p style="margin:0 0 8px">You changed: ${ch.map(p=>p.k==="ovr"?`<b>year-by-year cash flows</b>`:`<b>${p.l}</b> ${lab(p,cur[p.k])} to ${lab(p,live[p.k])}`).join("; ")}.</p><p style="margin:0 0 10px">What happens to NPV (currently ${money(npv(cur))})?</p><div class="btns"><button class="b-teal" data-p="up">NPV rises ↑</button><button class="b-or" data-p="down">NPV falls ↓</button><button class="b-light" data-p="same">About the same</button></div><p class="note">Not sure? <a href="#" id="undo">Undo the change</a></p>`;
+  pc.innerHTML=`<h2>Predict before you see it</h2><p style="margin:0 0 8px">You changed: ${ch.map(p=>p.k==="ovr"?`<b>year-by-year cash flows</b>`:`<b>${p.l}</b> ${lab(p,cur[p.k])} to ${lab(p,live[p.k])}`).join("; ")}.</p><p style="margin:0 0 10px">What happens to NPV (currently ${money(npv(cur))})?</p><textarea id="why" class="why" rows="2" maxlength="300" placeholder="Why? One sentence (optional)" aria-label="Why do you predict this? Optional"></textarea><div class="btns"><button class="b-teal" data-p="up">NPV rises ↑</button><button class="b-or" data-p="down">NPV falls ↓</button><button class="b-light" data-p="same">About the same</button></div><p class="note">Not sure? <a href="#" id="undo">Undo the change</a></p>`;
+  const wb=$("why");if(wb){wb.value=whyDraft;wb.oninput=()=>{whyDraft=wb.value}}
   pc.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>commit(b.dataset.p));
   $("undo").onclick=e=>{e.preventDefault();live=JSON.parse(JSON.stringify(cur));update()}}
  else{pc.className="card idle";pc.innerHTML=`<h2>Your prediction</h2><p style="margin:0 0 10px">${on?"Move a slider, type a value or pick a scenario, then predict here before the result is shown.":"Predict mode is off: results update instantly. Turn it on in the top bar."}</p><div class="btns"><button class="b-light" disabled>NPV rises ↑</button><button class="b-light" disabled>NPV falls ↓</button><button class="b-light" disabled>About the same</button></div>`}
  if(rev&&!ch.length){rc.hidden=false;const w={up:"rose",down:"fell",same:"barely moved"};
   const ok=rev.pred?(rev.pred===rev.actual?'<span class="ok">Correct.</span> ':'<span class="bad">Not quite.</span> You predicted '+({up:"a rise",down:"a fall",same:"no change"}[rev.pred])+". "):"";
   const flip=sgn(rev.from)!==sgn(rev.to)?(sgn(rev.to)===0?` <b>The project is now at break-even (NPV = 0).</b>`:` <b>The decision flipped to ${sgn(rev.to)>0?"accept":"reject"}.</b>`):"";
-  rc.className="card";rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?"+":""}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(d=>`<li><b>${d.p.l}</b>${d.p.k==="ovr"?"":" "+lab(d.p,d.from)+" to "+lab(d.p,d.to)}: ${d.d>=0?"+":""}${money(d.d)}. ${REASON[d.p.k][d.up?0:1]}</li>`).join("")}</ul><div class="btns"><button class="b-dark" id="done">Done</button></div>`;
+  rc.className="card";rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?"+":""}${money(rev.d)}).${flip}</p>${rev.why?`<div class="myway"><b>Your reasoning:</b> ${esc(rev.why)}</div>`:""}<ul class="drv">${rev.drivers.map(d=>`<li><b>${d.p.l}</b>${d.p.k==="ovr"?"":" "+lab(d.p,d.from)+" to "+lab(d.p,d.to)}: ${d.d>=0?"+":""}${money(d.d)}. ${REASON[d.p.k][d.up?0:1]}</li>`).join("")}</ul><div class="btns"><button class="b-dark" id="done">Done</button></div>`;
   $("done").onclick=()=>{rev=null;update()}}
  else rc.hidden=true}
 function update(){if(!$("predictOn").checked&&changed().length)return commit(null);syncAll();buildOvr();renderResult();renderCards()}
@@ -373,7 +379,7 @@ const CHAT_URL="https://capbud-chat.kshiblu.workers.dev";
 let hist=[],busy=false;
 function context(){const x=cur,n=npv(x),I=irr(x),pb=payback(x),dp=dpayback(x);
  const ov=Object.keys(x.ovr).length?` Edited years: ${Object.entries(x.ovr).map(([y,v])=>"Year "+y+" = $"+v+"k").join(", ")}.`:"";
- return `You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${x.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${x.cf}k in year 1 growing ${x.g}%/yr for ${x.n} years, plus an extra $${x.tv}k in the final year.${ov} Payback cutoff ${x.cut} years.\nCost of capital ${x.r}%. Results from my model: NPV ${money(n)}, IRR ${I.v===null?"n/a":(I.v*100).toFixed(1)+"%"}, payback ${pb===null?"never":pb.toFixed(1)+" yrs"}, discounted payback ${dp===null?"never":dp.toFixed(1)+" yrs"}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}. Ask me why in one question before explaining.\n`:""}`}
+ return `You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${x.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${x.cf}k in year 1 growing ${x.g}%/yr for ${x.n} years, plus an extra $${x.tv}k in the final year.${ov} Payback cutoff ${x.cut} years.\nCost of capital ${x.r}%. Results from my model: NPV ${money(n)}, IRR ${I.v===null?"n/a":(I.v*100).toFixed(1)+"%"}, payback ${pb===null?"never":pb.toFixed(1)+" yrs"}, discounted payback ${dp===null?"never":dp.toFixed(1)+" yrs"}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}.${rev.why?" Student's reasoning: "+rev.why:""} Ask me why in one question before explaining.\n`:""}`}
 function addMsg(role,text){const d=document.createElement("div");d.className="msg "+role;d.textContent=text;const l=$("chatlog");l.appendChild(d);l.scrollTop=l.scrollHeight;return d}
 async function ask(q){if(!CHAT_URL||busy)return;busy=true;addMsg("user",q);const out=addMsg("ai","Thinking...");hist.push({role:"user",content:q});hist=hist.slice(-12);if(hist[0].role!=="user")hist.shift();
  try{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:hist,context:context()})});
@@ -386,7 +392,7 @@ $("aisend").onclick=send;
 $("aiq").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
 $("aiclear").onclick=()=>{hist=[];$("chatlog").innerHTML=""};
 function setAI(on,msg){document.querySelectorAll("#aicard button,#aiq").forEach(b=>b.disabled=!on);$("aist").textContent=msg}
-if(CHAT_URL)setAI(true,"Ask anything. The assistant sees your current numbers but never recalculates them.");else $("aicard").hidden=true;
+if(CHAT_URL)setAI(true,"Your numbers are on my desk. What would you like to know?");else $("aicard").hidden=true;
 
 /* ---------- start ---------- */
 P.forEach(p=>buildField(p,$("fields"),false));
