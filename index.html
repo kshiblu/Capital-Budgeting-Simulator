@@ -129,7 +129,7 @@ textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px so
     <section class="card">
       <h2>Break-even points <span style="font-size:15px;color:var(--muted);font-family:'Nunito Sans',Arial,sans-serif;font-weight:700">· value that makes NPV = 0, other inputs unchanged</span></h2>
       <div class="tablewrap"><table id="beTbl"></table></div>
-      <p class="note">Margin of safety = how far the input can move against you before the decision flips. Click <b>Set</b> for exactly NPV = $0; typing a rounded value leaves a small gap. Project life moves in whole years, so it shows the shortest life with NPV ≥ 0 and has no Set button.</p>
+      <p class="note">Margin of safety = how far the input can move against you before the decision flips. Click <b>Set</b> for exactly NPV = $0; typing a rounded value leaves a small gap. Break-even life treats a part-year as earning a pro-rata share of that year’s cash flow (e.g. 5.29 yrs = 5 full years + 29% of Year 6). You can also type a part-year life such as 5.5.</p>
     </section>
     <div class="two">
       <section class="card">
@@ -149,11 +149,11 @@ textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px so
       <div class="tablewrap"><table id="tbl"></table></div>
     </section>
     <section class="card" id="aicard">
-      <h2>Ask the CFO</h2>
+      <h2>AI Finance Tutor</h2>
       <p class="note" style="margin-top:0" id="aist">Checking AI connection...</p>
       <div id="chatlog" aria-live="polite"></div>
       <div class="btns" style="margin-top:8px">
-        <button class="b-teal" data-q="Explain in 3 sentences what drives this NPV.">Brief me, CFO</button>
+        <button class="b-teal" data-q="Explain in 3 sentences what drives this NPV.">Explain my result</button>
         <button class="b-teal" data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Enrich me with scenarios</button>
       </div>
       <textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea>
@@ -185,15 +185,16 @@ let cur=base(), live=base(), rev=null, right=0, total=0, log=[], whyDraft="";
 const SH0={units:1,shares:10};
 let SH=Object.assign({},SH0);
 const $=id=>document.getElementById(id);
-const fmtIn=(p,v)=>{v=+v;const onStep=Math.abs(v/p.st-Math.round(v/p.st))<1e-9;if(onStep)return p.dec?v.toFixed(p.dec):String(v);return String(+v.toFixed(p.k==="n"?0:6))};
+const fmtIn=(p,v)=>{v=+v;const onStep=Math.abs(v/p.st-Math.round(v/p.st))<1e-9;if(onStep)return p.dec?v.toFixed(p.dec):String(v);return String(+v.toFixed(6))};
 const lab=(p,v)=>(p.pre||"")+(p.pre==="$"?Number(v).toLocaleString("en-US",{maximumFractionDigits:2}):fmtIn(p,v))+(p.suf==="K"?"K":(p.suf?(p.suf==="%"?"%":" "+p.suf):""));
 const money=v=>{if(!isFinite(v))return "—";const d=Math.round(v*1000);return (d<0?"−$":"$")+Math.abs(d).toLocaleString("en-US")};
-const clampP=(p,v,fine)=>{if(fine){v=(p.k==="n")?Math.round(v):+v.toFixed(6)}else{const d=(String(p.st).split(".")[1]||"").length;v=+(Math.round(v/p.st)*p.st).toFixed(d)}return Math.min(p.max,Math.max(p.min,v))};
+const clampP=(p,v,fine)=>{if(fine){v=+v.toFixed(6)}else{const d=(String(p.st).split(".")[1]||"").length;v=+(Math.round(v/p.st)*p.st).toFixed(d)}return Math.min(p.max,Math.max(p.min,v))};
 const sameOvr=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- finance ---------- */
-function flows(x){const a=[-x.capex];for(let t=1;t<=x.n;t++){let c=(t in x.ovr)?x.ovr[t]:x.cf*Math.pow(1+x.g/100,t-1);if(t===x.n)c+=x.tv;a.push(c)}return a}
+const lastYr=n=>Math.max(1,Math.ceil(n-1e-9));
+function flows(x){const a=[-x.capex],N=lastYr(x.n),fr=x.n-(N-1);for(let t=1;t<=N;t++){let c=(t in x.ovr)?x.ovr[t]:x.cf*Math.pow(1+x.g/100,t-1);if(t===N){if(fr<1-1e-9)c*=fr;c+=x.tv}a.push(c)}return a}
 const npvA=(cf,r)=>cf.reduce((s,c,t)=>s+c/Math.pow(1+r,t),0);
 const npv=(x,r)=>npvA(flows(x),r===undefined?x.r/100:r);
 function irr(x){const cf=flows(x);const sg=cf.filter(c=>Math.abs(c)>1e-9).map(Math.sign);let ch=0;for(let i=1;i<sg.length;i++)if(sg[i]!==sg[i-1])ch++;
@@ -202,9 +203,10 @@ function irr(x){const cf=flows(x);const sg=cf.filter(c=>Math.abs(c)>1e-9).map(Ma
   if(isFinite(flo)&&isFinite(fhi)&&(flo===0||flo*fhi<0)){let a=lo,b=hi,fa=flo;for(let k=0;k<80;k++){const m=(a+b)/2,fm=npvA(cf,m);if(fa*fm<=0)b=m;else{a=m;fa=fm}}roots.push((a+b)/2)}
   lo=hi;flo=fhi}
  return{v:roots.length?roots[0]:null,all:roots,ch}}
-function pbA(v){let c=v[0];if(c>=0)return 0;for(let t=1;t<v.length;t++){const p=c;c+=v[t];if(c>=0&&v[t]>0)return(t-1)+(-p/v[t])}return null}
-const payback=x=>pbA(flows(x));
-const dpayback=x=>pbA(flows(x).map((c,t)=>c/Math.pow(1+x.r/100,t)));
+function pbA(v,fr){let c=v[0];if(c>=0)return 0;for(let t=1;t<v.length;t++){const p=c;c+=v[t];if(c>=-1e-9&&v[t]>0){const span=(t===v.length-1&&fr<1)?fr:1;return(t-1)+Math.min(1,-p/v[t])*span}}return null}
+const lastFr=x=>{const N=lastYr(x.n),f=x.n-(N-1);return f<1-1e-9?f:1};
+const payback=x=>pbA(flows(x),lastFr(x));
+const dpayback=x=>pbA(flows(x).map((c,t)=>c/Math.pow(1+x.r/100,t)),lastFr(x));
 
 /* ---------- predict logic ---------- */
 const changed=()=>{const c=P.filter(p=>live[p.k]!==cur[p.k]);if(!sameOvr(live.ovr,cur.ovr))c.push({k:"ovr",l:"Year-by-year cash flows",f:()=>""});return c};
@@ -223,8 +225,10 @@ const sgn=v=>v>ZT?1:(v<-ZT?-1:0);
 function commit(pred){
  const why=pred?whyDraft.trim():"";whyDraft="";
  const from=npv(cur),ch=changed();
- const drivers=ch.map(p=>{const alt=JSON.parse(JSON.stringify(cur));if(p.k==="ovr")alt.ovr=JSON.parse(JSON.stringify(live.ovr));else alt[p.k]=live[p.k];if(p.k==="n"){for(const y in alt.ovr)if(+y>alt.n)delete alt.ovr[y]}
-  return{p,up:p.k==="ovr"?true:live[p.k]>cur[p.k],from:cur[p.k],to:live[p.k],d:npv(alt)-from}});
+ // step-by-step: apply each change on top of the previous ones, so the steps add up exactly
+ const alt=JSON.parse(JSON.stringify(cur));
+ const drivers=ch.map(p=>{const before=npv(alt);if(p.k==="ovr")alt.ovr=JSON.parse(JSON.stringify(live.ovr));else alt[p.k]=live[p.k];if(p.k==="n"){for(const y in alt.ovr)if(+y>lastYr(alt.n))delete alt.ovr[y]}
+  const after=npv(alt);return{p,up:p.k==="ovr"?true:live[p.k]>cur[p.k],from:cur[p.k],to:live[p.k],d:after-before,after}});
  cur=JSON.parse(JSON.stringify(live));const to=npv(cur),d=to-from;
  const actual=d>TOL?"up":d<-TOL?"down":"same";
  log.push({change:ch.map(p=>p.k==="ovr"?p.l:p.l+": "+lab(p,drivers.find(x=>x.p===p).from)+" to "+lab(p,live[p.k])).join("; "),pred:pred||"none",actual});
@@ -241,14 +245,14 @@ function buildField(p,host,isShare){
  host.appendChild(w);
  const s=$("s-"+p.k),n=$("n-"+p.k);
  const setv=(v,fine)=>{v=clampP(p,v,fine);if(isShare){SH[p.k]=v;renderShare(npv(cur));syncField(p,true);return}
-  if(live[p.k]===v){syncField(p);return}live[p.k]=v;if(p.k==="n"){for(const y in live.ovr)if(+y>v)delete live.ovr[y]}rev=null;update()};
+  if(live[p.k]===v){syncField(p);return}live[p.k]=v;if(p.k==="n"){for(const y in live.ovr)if(+y>lastYr(v))delete live.ovr[y]}rev=null;update()};
  s.addEventListener("input",()=>{$("w-"+p.k).textContent="";setv(parseFloat(s.value))});
  const box=()=>{const raw=n.value.replace(/[$,%\sKkMm]/g,"").replace("−","-"),v=parseFloat(raw),wn=$("w-"+p.k);
   if(raw===""||!isFinite(v)){wn.textContent="Please type a number.";syncField(p,isShare);return}
   const c=clampP(p,v,true);wn.textContent=(v<p.min||v>p.max)?`Allowed range: ${p.min} to ${p.max.toLocaleString("en-US")}. Set to ${c}.`:"";setv(c,true)};
  n.addEventListener("change",box);n.addEventListener("keydown",e=>{if(e.key==="Enter")n.blur()});
 }
-function applyExact(k,v){const p=P.find(q=>q.k===k);if(!p||!isFinite(v))return;v=Math.min(p.max,Math.max(p.min,k==="n"?Math.round(v):v));if(live[k]===v)return;live[k]=v;if(k==="n"){for(const y in live.ovr)if(+y>v)delete live.ovr[y]}rev=null;update()}
+function applyExact(k,v){const p=P.find(q=>q.k===k);if(!p||!isFinite(v))return;v=Math.min(p.max,Math.max(p.min,v));if(live[k]===v)return;live[k]=v;if(k==="n"){for(const y in live.ovr)if(+y>lastYr(v))delete live.ovr[y]}rev=null;update()}
 function syncField(p,isShare){const s=$("s-"+p.k),n=$("n-"+p.k);if(!s||!n)return;const v=isShare?SH[p.k]:live[p.k];s.value=v;if(document.activeElement!==n)n.value=fmtIn(p,v);
  if(!isShare){const ch=live[p.k]!==cur[p.k];$("row-"+p.k).classList.toggle("chg",ch);$("was-"+p.k).textContent=ch?`(was ${lab(p,cur[p.k])})`:""}}
 function syncAll(){P.forEach(p=>syncField(p));SHP.forEach(p=>syncField(p,true))}
@@ -257,7 +261,7 @@ function syncAll(){P.forEach(p=>syncField(p));SHP.forEach(p=>syncField(p,true))}
 function buildOvr(){
  const a=document.activeElement;if(a&&a.dataset&&a.dataset.y)return;
  let h=`<tr><th>Year</th><th>Model CF</th><th>Your CF</th></tr>`;
- for(let t=1;t<=live.n;t++){const m=live.cf*Math.pow(1+live.g/100,t-1),has=(t in live.ovr);
+ for(let t=1;t<=lastYr(live.n);t++){const m=live.cf*Math.pow(1+live.g/100,t-1),has=(t in live.ovr);
   h+=`<tr><td>${t}</td><td>${m.toFixed(2)}</td><td><input data-y="${t}" class="${has?"over":""}" value="${has?live.ovr[t]:""}" placeholder="—" inputmode="decimal" aria-label="Year ${t} cash flow override"></td></tr>`}
  $("ovr").innerHTML=h;
  $("ovr").querySelectorAll("input").forEach(inp=>{
@@ -284,7 +288,7 @@ function renderResult(){
  const pv=cf.map((c,t)=>c/Math.pow(1+r,t));let c1=0,c2=0;
  const f=v=>`<span class="${v<-1e-9?"neg":(v>1e-9?"pos":"")}">${(v<0?"−":"")+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
  let t=`<tr><th>Year</th><th>Cash flow</th><th>Cumulative CF</th><th>PV at ${x.r.toFixed(1)}%</th><th>Cumulative PV</th></tr>`;
- cf.forEach((c,i)=>{c1+=c;c2+=pv[i];t+=`<tr><td>${i}${i===x.n&&x.tv>0?" (incl. extra)":""}${(i in x.ovr)?" (edited)":""}</td><td>${f(c)}</td><td>${f(c1)}</td><td>${f(pv[i])}</td><td>${f(c2)}</td></tr>`});
+ cf.forEach((c,i)=>{c1+=c;c2+=pv[i];t+=`<tr><td>${i}${i===lastYr(x.n)&&x.n<lastYr(x.n)-1e-9?" (part-year)":""}${i===lastYr(x.n)&&x.tv>0?" (incl. extra)":""}${(i in x.ovr)?" (edited)":""}</td><td>${f(c)}</td><td>${f(c1)}</td><td>${f(pv[i])}</td><td>${f(c2)}</td></tr>`});
  t+=`<tr><td><b>NPV</b></td><td></td><td></td><td></td><td><b>${money(n)}</b></td></tr>`;$("tbl").innerHTML=t;
  drawChart(cf,I,n,x);renderShare(n);renderBreak(x,n,I);
  $("score").textContent=total?`Predictions correct: ${right} of ${total}`:"";
@@ -309,16 +313,20 @@ function renderBreak(x,n,I){
  // Growth
  const beG=bisect(g=>npv({...x,g}),-90,300);
  rows.push(["g",beG,"Cash-flow growth",(x.g<0?"−":"")+String(+Math.abs(x.g).toFixed(4))+"%",beG===null?"Not found (−90% to 300%)":pctS(beG),beG===null?"—":(beG<x.g?"Can fall "+(x.g-beG).toFixed(2)+" pts":"Must rise "+(beG-x.g).toFixed(2)+" pts")]);
- // Life
- let beN=null;for(let k=1;k<=50;k++){const o={};for(const y in x.ovr)if(+y<=k)o[y]=x.ovr[y];if(npv({...x,n:k,ovr:o})>=-ZT){beN=k;break}}
- rows.push(["n",beN,"Project life",x.n+" yrs",beN===null?"Over 50 yrs":beN+" yrs (shortest life with NPV ≥ 0)",beN===null?"—":(beN<x.n?(x.n-beN)+" yr"+(x.n-beN>1?"s":"")+" of cushion":beN===x.n?"No cushion":"Needs "+(beN-x.n)+" more yr"+(beN-x.n>1?"s":""))]);
+ // Life: exact break-even using the part-year model (last year earns a pro-rata share of its cash flow)
+ const npvL=L=>{const o={};for(const y in x.ovr)if(+y<=lastYr(L))o[y]=x.ovr[y];return npv({...x,n:L,ovr:o})};
+ let beF=null,note="";
+ if(npvL(1)>=-ZT){beF=Math.abs(npvL(1))<ZT?1:null;note=beF===null?"Under 1 yr":""}
+ else{for(let k=2;k<=50;k++){if(npvL(k)>=-ZT){beF=Math.abs(npvL(k))<ZT?k:bisect(npvL,k-1,k);break}}if(beF===null)note="Over 50 yrs"}
+ const yr=v=>(+v.toFixed(4))+" yrs";
+ rows.push(["n",beF,"Project life",String(+x.n.toFixed(4))+" yrs",beF===null?note:yr(beF),beF===null?(note==="Under 1 yr"?"More than "+(x.n-1).toFixed(2)+" yrs of cushion":"—"):(beF<x.n-1e-9?(x.n-beF).toFixed(2)+" yrs of cushion":Math.abs(beF-x.n)<1e-9?"No cushion":"Needs "+(beF-x.n).toFixed(2)+" more yrs")]);
  // Extra final-year cash flow
- const beTV=Math.abs(n)<ZT?x.tv:x.tv-n*Math.pow(1+x.r/100,x.n);
+ const beTV=Math.abs(n)<ZT?x.tv:x.tv-n*Math.pow(1+x.r/100,lastYr(x.n));
  rows.push(["tv",beTV>x.tv?beTV:null,"Extra cash flow in final year","$"+(+x.tv).toLocaleString("en-US",{maximumFractionDigits:4})+"K",beTV<=x.tv?(Math.abs(n)<ZT?kK(x.tv):(x.tv>0?kK(Math.max(beTV,0)):"None needed: NPV is already positive")):kK(beTV),beTV<=x.tv?(Math.abs(n)<ZT?"At break-even":(x.tv>0?(beTV<=0?"Can drop to $0K":pc(beTV,x.tv,true)):"—")):"Needs +"+kK(beTV-x.tv).replace("−","")]);
  let h=`<tr><th>Input</th><th>Current</th><th>Break-even</th><th>Margin of safety</th><th></th></tr>`;
  rows.forEach((r,i)=>{const p=P.find(q=>q.k===r[0]);
   const atBE=Math.abs(n)<ZT;if(atBE&&r[5]!=="—")r[5]="At break-even";
-  const can=!atBE&&r[0]!=="n"&&r[1]!==null&&isFinite(r[1])&&r[1]>=p.min&&r[1]<=p.max&&Math.abs(r[1]-x[r[0]])>1e-9;
+  const can=!atBE&&r[1]!==null&&isFinite(r[1])&&r[1]>=p.min&&r[1]<=p.max&&Math.abs(r[1]-x[r[0]])>1e-9;
   const bad=/^Must|^Needs|^No cushion/.test(r[5]);h+=`<tr><td>${r[2]}</td><td>${r[3]}</td><td><b>${r[4]}</b></td><td class="${r[5]==="—"||r[5]==="At break-even"?"":(bad?"neg":"pos")}">${r[5]}</td><td>${can?`<button class="b-light" data-be="${i}" style="padding:5px 12px">Set</button>`:""}</td></tr>`});
  $("beTbl").innerHTML=h;
  $("beTbl").querySelectorAll("[data-be]").forEach(btn=>btn.onclick=()=>{const r=rows[+btn.dataset.be];applyExact(r[0],r[1])})}
@@ -342,6 +350,21 @@ function renderShare(n){
  const tm=(a>=1e9?(a/1e9).toFixed(2)+"B":a>=1e6?(a/1e6).toFixed(1)+"M":Math.round(a).toLocaleString("en-US"));
  $("shareOut").innerHTML=`<span style="color:${per<0?"#B8410E":"#0E7C86"}">${per<0?"−":"+"}$${Math.abs(per).toFixed(2)} per share</span>`;
  $("shareNote").textContent=`Total NPV ${tot<0?"−":"+"}$${tm} ÷ ${SH.shares.toLocaleString("en-US")}M shares. Δ Share price ≈ total NPV ÷ shares outstanding, if investors believe these cash flows.`}
+const SHORT={capex:"Investment",cf:"Year-1 CF",g:"Growth",n:"Life",tv:"Final-year cash",r:"WACC",cut:"Payback cutoff",ovr:"Edited years"};
+function stepLabel(d){const k=d.p.k,rng=k==="ovr"?"":` (${SHORT[k]} ${lab(d.p,d.from)} → ${lab(d.p,d.to)})`;
+ if(k==="capex")return(d.up?"Initial investment increase":"Initial investment decrease")+rng;
+ if(k==="cut")return"No effect on NPV"+rng;
+ if(Math.abs(d.d)<ZT)return"PV of cash flows: no change"+rng;
+ return(d.d>0?"PV of cash flows increase":"PV of cash flows decrease")+(k==="ovr"?" (edited years)":rng)}
+function stepTable(rv){
+ const sg=v=>(v>=0?"+":"")+money(v);
+ let t=`<div class="tablewrap" style="margin-top:10px"><table><tr><th>Step</th><th>Effect on NPV</th><th>NPV after step</th></tr><tr><td><b>Starting NPV</b></td><td></td><td><b>${money(rv.from)}</b></td></tr>`;
+ rv.drivers.forEach((d,i)=>{t+=`<tr><td>${rv.drivers.length>1?"Step "+(i+1)+": ":""}${stepLabel(d)}</td><td class="${d.d>ZT?"pos":(d.d<-ZT?"neg":"")}">${sg(d.d)}</td><td>${money(d.after)}</td></tr>`});
+ t+=`<tr><td><b>New NPV</b></td><td class="${rv.d>ZT?"pos":(rv.d<-ZT?"neg":"")}"><b>${sg(rv.d)}</b></td><td><b>${money(rv.to)}</b></td></tr></table></div>`;
+ const why=[...new Set(rv.drivers.map(d=>`<li><b>${SHORT[d.p.k]}:</b> ${REASON[d.p.k][d.up?0:1]}</li>`))].join("");
+ t+=`<ul class="drv">${why}</ul>`;
+ if(rv.drivers.length>1)t+=`<p class="note" style="margin:0 0 8px">Each step is applied on top of the ones before it, so the steps add up exactly to the new NPV.</p>`;
+ return t}
 function renderCards(){
  const ch=changed(),pc=$("pcard"),rc=$("rcard"),on=$("predictOn").checked;
  if(ch.length&&on){pc.className="card predict";
@@ -353,7 +376,7 @@ function renderCards(){
  if(rev&&!ch.length){rc.hidden=false;const w={up:"rose",down:"fell",same:"barely moved"};
   const ok=rev.pred?(rev.pred===rev.actual?'<span class="ok">Correct.</span> ':'<span class="bad">Not quite.</span> You predicted '+({up:"a rise",down:"a fall",same:"no change"}[rev.pred])+". "):"";
   const flip=sgn(rev.from)!==sgn(rev.to)?(sgn(rev.to)===0?` <b>The project is now at break-even (NPV = 0).</b>`:` <b>The decision flipped to ${sgn(rev.to)>0?"accept":"reject"}.</b>`):"";
-  rc.className="card";rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?"+":""}${money(rev.d)}).${flip}</p>${rev.why?`<div class="myway"><b>Your reasoning:</b> ${esc(rev.why)}</div>`:""}<ul class="drv">${rev.drivers.map(d=>`<li><b>${d.p.l}</b>${d.p.k==="ovr"?"":" "+lab(d.p,d.from)+" to "+lab(d.p,d.to)}: ${d.d>=0?"+":""}${money(d.d)}. ${REASON[d.p.k][d.up?0:1]}</li>`).join("")}</ul><div class="btns"><button class="b-dark" id="done">Done</button></div>`;
+  rc.className="card";rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?"+":""}${money(rev.d)}).${flip}</p>${rev.why?`<div class="myway"><b>Your reasoning:</b> ${esc(rev.why)}</div>`:""}${stepTable(rev)}<div class="btns"><button class="b-dark" id="done">Done</button></div>`;
   $("done").onclick=()=>{rev=null;update()}}
  else rc.hidden=true}
 function update(){if(!$("predictOn").checked&&changed().length)return commit(null);syncAll();buildOvr();renderResult();renderCards()}
@@ -392,7 +415,7 @@ $("aisend").onclick=send;
 $("aiq").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
 $("aiclear").onclick=()=>{hist=[];$("chatlog").innerHTML=""};
 function setAI(on,msg){document.querySelectorAll("#aicard button,#aiq").forEach(b=>b.disabled=!on);$("aist").textContent=msg}
-if(CHAT_URL)setAI(true,"Your numbers are on my desk. What would you like to know?");else $("aicard").hidden=true;
+if(CHAT_URL)setAI(true,"Ask about your numbers. I can see your current inputs and results.");else $("aicard").hidden=true;
 
 /* ---------- start ---------- */
 P.forEach(p=>buildField(p,$("fields"),false));
