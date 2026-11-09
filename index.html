@@ -400,12 +400,47 @@ $("predictOn").onchange=update;
 // Set this to your deployed Cloudflare Worker URL (see worker.js). Leave empty to hide chat.
 const CHAT_URL="https://capbud-chat.kshiblu.workers.dev";
 let hist=[],busy=false;
-function context(){const x=cur,n=npv(x),I=irr(x),pb=payback(x),dp=dpayback(x);
+function whatIfs(x){
+ const n0=npv(x),f=v=>money(v),dlt=v=>(v-n0>=0?"+":"")+money(v-n0);
+ const scaleCF=k=>{const o={};for(const y in x.ovr)o[y]=x.ovr[y]*k;return npv({...x,cf:x.cf*k,tv:x.tv,ovr:o})};
+ const L=[];
+ for(const p of [1,5,10]){L.push(`Cash flows (every year, excl. final-year extra) +${p}%: NPV ${f(scaleCF(1+p/100))} (${dlt(scaleCF(1+p/100))})`);L.push(`Cash flows −${p}%: NPV ${f(scaleCF(1-p/100))} (${dlt(scaleCF(1-p/100))})`)}
+ for(const p of [1,10]){L.push(`Initial investment +${p}%: NPV ${f(npv({...x,capex:x.capex*(1+p/100)}))} (${dlt(npv({...x,capex:x.capex*(1+p/100)}))})`);L.push(`Initial investment −${p}%: NPV ${f(npv({...x,capex:x.capex*(1-p/100)}))} (${dlt(npv({...x,capex:x.capex*(1-p/100)}))})`)}
+ for(const p of [0.5,1,2]){if(x.r+p<=100)L.push(`Required return +${p} pt (${(x.r+p).toFixed(1)}%): NPV ${f(npv({...x,r:x.r+p}))} (${dlt(npv({...x,r:x.r+p}))})`);if(x.r-p>0)L.push(`Required return −${p} pt (${(x.r-p).toFixed(1)}%): NPV ${f(npv({...x,r:x.r-p}))} (${dlt(npv({...x,r:x.r-p}))})`)}
+ for(const p of [1,2]){L.push(`Growth +${p} pt (${x.g+p}%): NPV ${f(npv({...x,g:x.g+p}))} (${dlt(npv({...x,g:x.g+p}))})`);L.push(`Growth −${p} pt (${x.g-p}%): NPV ${f(npv({...x,g:x.g-p}))} (${dlt(npv({...x,g:x.g-p}))})`)}
+ const lf=k=>{const o={};for(const y in x.ovr)if(+y<=lastYr(k))o[y]=x.ovr[y];return npv({...x,n:k,ovr:o})};
+ L.push(`Project life +1 yr (${x.n+1} yrs): NPV ${f(lf(x.n+1))} (${dlt(lf(x.n+1))})`);if(x.n-1>=1)L.push(`Project life −1 yr (${x.n-1} yrs): NPV ${f(lf(x.n-1))} (${dlt(lf(x.n-1))})`);
+ const pvIn=n0+x.capex;L.push(`PV of all future cash flows: ${f(pvIn)}. Rule of thumb: a k% change in all cash flows changes NPV by about k% of this PV.`);
+ // break-evens from the table
+ const rows=[...document.querySelectorAll("#beTbl tr")].slice(1).map(r=>r.cells[0].textContent+": break-even "+r.cells[2].textContent);
+ return "Exact what-ifs computed by the simulator (one change at a time, others unchanged):\n- "+L.join("\n- ")+"\nBreak-even values (NPV = 0):\n- "+rows.join("\n- ")}
+function askedIfs(x,q){
+ if(!q)return"";const n0=npv(x),f=v=>money(v),dlt=v=>(v-n0>=0?"+":"")+money(v-n0),L=[],seen=new Set();
+ const add=(lab,v)=>{if(!isFinite(v)||seen.has(lab))return;seen.add(lab);L.push(`${lab}: NPV ${f(v)} (${dlt(v)}), decision ${Math.abs(v)<ZT?"indifferent":(v>0?"accept":"reject")}`)};
+ const scaleCF=k=>{const o={};for(const y in x.ovr)o[y]=x.ovr[y]*k;return npv({...x,cf:x.cf*k,ovr:o})};
+ const lf=k=>{const o={};for(const y in x.ovr)if(+y<=lastYr(k))o[y]=x.ovr[y];return npv({...x,n:k,ovr:o})};
+ const re=/(\$?)\s*(\d+(?:[.,]\d+)?)\s*(%|percent|pts?|points?|k\b|thousand|m\b|million|years?|yrs?)?/gi;let m,c=0;
+ while((m=re.exec(q))&&c<5){c++;const N=parseFloat(m[2].replace(",","")),u=(m[3]||"").toLowerCase(),dollar=m[1]==="$";
+  const pct=/%|percent/.test(u),pts=/pt|point/.test(u),yrs=/year|yr/.test(u),big=/k|thousand/.test(u)||dollar,mil=/^m|million/.test(u);
+  if(pct||(!u&&!dollar&&N<=100)){
+   add(`Cash flows +${N}%`,scaleCF(1+N/100));add(`Cash flows −${N}%`,scaleCF(1-N/100));
+   add(`Initial investment +${N}%`,npv({...x,capex:x.capex*(1+N/100)}));add(`Initial investment −${N}%`,npv({...x,capex:x.capex*(1-N/100)}));
+   if(N>0&&N<=100)add(`Required return set to ${N}%`,npv({...x,r:N}));
+   add(`Required return +${N} pts (${(x.r+N).toFixed(2)}%)`,npv({...x,r:x.r+N}));if(x.r-N>0)add(`Required return −${N} pts (${(x.r-N).toFixed(2)}%)`,npv({...x,r:x.r-N}));
+   if(N<=100)add(`Growth set to ${N}%`,npv({...x,g:N}));add(`Growth +${N} pts`,npv({...x,g:x.g+N}));add(`Growth −${N} pts`,npv({...x,g:x.g-N}))}
+  if(pts){add(`Required return +${N} pts (${(x.r+N).toFixed(2)}%)`,npv({...x,r:x.r+N}));if(x.r-N>0)add(`Required return −${N} pts (${(x.r-N).toFixed(2)}%)`,npv({...x,r:x.r-N}));add(`Growth +${N} pts`,npv({...x,g:x.g+N}));add(`Growth −${N} pts`,npv({...x,g:x.g-N}))}
+  if(yrs||(!u&&!dollar&&N>=1&&N<=50&&Number.isInteger(N)))if(N>=0.01&&N<=50)add(`Project life set to ${N} yrs`,lf(N));
+  if(big||mil||(!u&&N>100)){const K=mil?N*1000:(/thousand|k/.test(u)||N>100||dollar?(N>=1000&&!/k|thousand/.test(u)?N/1000:N):N);
+   add(`Year-1 cash flow set to $${K}K`,npv({...x,cf:K}));add(`Initial investment set to $${K}K`,npv({...x,capex:K}));add(`Extra final-year cash flow set to $${K}K`,npv({...x,tv:K}));
+   add(`Year-1 cash flow +$${K}K`,npv({...x,cf:x.cf+K}));add(`Year-1 cash flow −$${K}K`,npv({...x,cf:x.cf-K}));add(`Initial investment +$${K}K`,npv({...x,capex:x.capex+K}));add(`Initial investment −$${K}K`,npv({...x,capex:x.capex-K}))}
+ }
+ return L.length?"Exact results for the numbers in the student's question (one change at a time):\n- "+L.join("\n- ")+"\n":""}
+function context(q){const x=cur,n=npv(x),I=irr(x),pb=payback(x),dp=dpayback(x);
  const ov=Object.keys(x.ovr).length?` Edited years: ${Object.entries(x.ovr).map(([y,v])=>"Year "+y+" = $"+v+"k").join(", ")}.`:"";
- return `You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${x.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${x.cf}k in year 1 growing ${x.g}%/yr for ${x.n} years, plus an extra $${x.tv}k in the final year.${ov} Payback cutoff ${x.cut} years.\nCost of capital ${x.r}%. Results from my model: NPV ${money(n)}, IRR ${I.v===null?"n/a":(I.v*100).toFixed(1)+"%"}, payback ${pb===null?"never":pb.toFixed(1)+" yrs"}, discounted payback ${dp===null?"never":dp.toFixed(1)+" yrs"}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}.${rev.why?" Student's reasoning: "+rev.why:""} Ask me why in one question before explaining.\n`:""}`}
+ return `You are an AI finance tutor for a capital budgeting class. Answer conceptual questions fully and clearly: what NPV, IRR, payback, discounted payback, WACC, break-even and the time value of money mean, why a result happens, how the methods compare, their strengths and weaknesses, and how projects affect firm value and share price. Use plain words and short examples. Number rule: any number about THIS project must come from the figures below; quote it exactly and never calculate, estimate or round a new one yourself. When an example helps a concept, use this project’s figures from the lists. If the student asks about a what-if that is not in the lists, explain the direction and the reason in words, and ask them to set it in the simulator to see the exact value.\nProject: initial investment $${x.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${x.cf}k in year 1 growing ${x.g}%/yr for ${x.n} years, plus an extra $${x.tv}k in the final year.${ov} Payback cutoff ${x.cut} years.\nCost of capital ${x.r}%. Results from my model: NPV ${money(n)}, IRR ${I.v===null?"n/a":(I.v*100).toFixed(1)+"%"}, payback ${pb===null?"never":pb.toFixed(1)+" yrs"}, discounted payback ${dp===null?"never":dp.toFixed(1)+" yrs"}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}.${rev.why?" Student's reasoning: "+rev.why:""}\n`:""}${askedIfs(x,q)}${whatIfs(x)}\nHow to reply: answer the student's question directly and clearly first. Keep it short unless they ask for more detail. Do not reply with only a question. You may end with at most one short follow-up question to check understanding.\n`}
 function addMsg(role,text){const d=document.createElement("div");d.className="msg "+role;d.textContent=text;const l=$("chatlog");l.appendChild(d);l.scrollTop=l.scrollHeight;return d}
 async function ask(q){if(!CHAT_URL||busy)return;busy=true;addMsg("user",q);const out=addMsg("ai","Thinking...");hist.push({role:"user",content:q});hist=hist.slice(-12);if(hist[0].role!=="user")hist.shift();
- try{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:hist,context:context()})});
+ try{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:hist,context:context(q)})});
   if(!r.ok)throw new Error(String(r.status));const j=await r.json();out.textContent=j.text;hist.push({role:"assistant",content:j.text})}
  catch(e){hist.pop();out.textContent=e.message==="429"?"Too many requests. Wait a minute and try again.":"Chat is unavailable right now. Check your internet connection."}
  finally{busy=false;$("chatlog").scrollTop=1e6}}
