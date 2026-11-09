@@ -126,7 +126,7 @@ textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px so
     <section class="card">
       <h2>Break-even points <span style="font-size:15px;color:var(--muted);font-family:'Nunito Sans',Arial,sans-serif;font-weight:700">· value that makes NPV = 0, other inputs unchanged</span></h2>
       <div class="tablewrap"><table id="beTbl"></table></div>
-      <p class="note">Margin of safety = how far the input can move against you before the decision flips. Click <b>Set</b> for exactly NPV = $0; typing a rounded value leaves a small gap. Project life moves in whole years, so it rarely hits exactly $0.</p>
+      <p class="note">Margin of safety = how far the input can move against you before the decision flips. Click <b>Set</b> for exactly NPV = $0; typing a rounded value leaves a small gap. Project life moves in whole years, so it shows the shortest life with NPV ≥ 0 and has no Set button.</p>
     </section>
     <div class="two">
       <section class="card">
@@ -214,6 +214,8 @@ const REASON={
  cut:["The cutoff is management’s benchmark only. It changes no cash flow, so NPV does not move.","The cutoff is management’s benchmark only. It changes no cash flow, so NPV does not move."],
  ovr:["You edited individual years’ cash flows; each change moves NPV by its present value.","You edited individual years’ cash flows; each change moves NPV by its present value."]};
 const TOL=0.5; // $500 counts as "about the same"
+const ZT=0.0005; // |NPV| below $0.50 is treated as exactly zero
+const sgn=v=>v>ZT?1:(v<-ZT?-1:0);
 function commit(pred){
  const from=npv(cur),ch=changed();
  const drivers=ch.map(p=>{const alt=JSON.parse(JSON.stringify(cur));if(p.k==="ovr")alt.ovr=JSON.parse(JSON.stringify(live.ovr));else alt[p.k]=live[p.k];if(p.k==="n"){for(const y in alt.ovr)if(+y>alt.n)delete alt.ovr[y]}
@@ -263,7 +265,7 @@ function buildOvr(){
 const tile=(k,v,cls,d)=>`<div class="res ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
 function renderResult(){
  const x=cur,n=npv(x),I=irr(x),pb=payback(x),dp=dpayback(x),r=x.r/100,cf=flows(x);
- let h=tile("NPV",money(n),Math.abs(n)<0.0005?"":(n>0?"acc":"rej"),Math.abs(n)<0.0005?"NPV = 0: indifferent":(n>0?"Accept: adds value":"Reject: destroys value"));
+ let h=tile("NPV",money(n),Math.abs(n)<ZT?"":(n>0?"acc":"rej"),Math.abs(n)<ZT?"NPV = 0: indifferent":(n>0?"Accept: adds value":"Reject: destroys value"));
  if(I.v===null)h+=tile("IRR","n/a","",I.ch===0?"Cash flows never change sign":"No IRR found");
  else if(I.all.length>1)h+=tile("IRR",I.all.slice(0,3).map(v=>(v*100).toFixed(1)+"%").join(" & "),"","Multiple IRRs: use NPV");
  else if(I.ch>1)h+=tile("IRR",(I.v*100).toFixed(2)+"%","","Non-conventional flows: use NPV");
@@ -271,8 +273,8 @@ function renderResult(){
  h+=pb===null?tile("Payback","Never","rej","Fail: not recovered"):tile("Payback",pb.toFixed(2)+" yrs",pb<=x.cut?"acc":"rej",pb<=x.cut?`Pass: within ${x.cut} yrs`:`Fail: over ${x.cut} yrs`);
  h+=dp===null?tile("Discounted payback","Never","rej","Fail: not recovered"):tile("Discounted payback",dp.toFixed(2)+" yrs",dp<=x.cut?"acc":"rej",dp<=x.cut?`Pass: within ${x.cut} yrs`:`Fail: over ${x.cut} yrs`);
  $("tiles").innerHTML=h;
- const dc=$("dec");dc.className="decision "+(n>=0?"yes":"no");
- dc.innerHTML=(n>=0?"Accept: NPV is positive, so the project adds value.":"Reject: NPV is negative, so the project destroys value.")+`<div class="sub">NPV decides. IRR gives the same answer for a normal project; payback and discounted payback are secondary screens.</div>`;
+ const dc=$("dec"),z=Math.abs(n)<ZT;dc.className="decision "+(z?"yes":(n>0?"yes":"no"));
+ dc.innerHTML=(z?"Indifferent: NPV = 0. The project earns exactly the required return, so it neither adds nor destroys value.":(n>0?"Accept: NPV is positive, so the project adds value.":"Reject: NPV is negative, so the project destroys value."))+`<div class="sub">NPV decides. IRR gives the same answer for a normal project; payback and discounted payback are secondary screens.</div>`;
  // table
  const pv=cf.map((c,t)=>c/Math.pow(1+r,t));let c1=0,c2=0;
  const f=v=>`<span class="${v<-1e-9?"neg":(v>1e-9?"pos":"")}">${(v<0?"−":"")+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
@@ -292,26 +294,27 @@ function renderBreak(x,n,I){
  // Year-1 cash flow (NPV linear in cf)
  const a=npv({...x,cf:0}),b=npv({...x,cf:1})-a;
  const beCF=Math.abs(b)<1e-12?null:-a/b;
- rows.push(["cf",beCF,"Year-1 net cash flow","$"+Math.round(x.cf).toLocaleString("en-US")+"K",beCF===null?"Not defined":kK(beCF),beCF===null?"—":pc(beCF,x.cf,true)]);
+ rows.push(["cf",beCF,"Year-1 net cash flow","$"+(+x.cf).toLocaleString("en-US",{maximumFractionDigits:4})+"K",beCF===null?"Not defined":kK(beCF),beCF===null?"—":pc(beCF,x.cf,true)]);
  // Initial investment
  const beCap=n+x.capex;
- rows.push(["capex",beCap<0?null:beCap,"Initial investment","$"+Math.round(x.capex).toLocaleString("en-US")+"K",beCap<0?"Not possible":kK(beCap),pc(beCap,x.capex,false)]);
+ rows.push(["capex",beCap<0?null:beCap,"Initial investment","$"+(+x.capex).toLocaleString("en-US",{maximumFractionDigits:4})+"K",beCap<0?"Not possible":kK(beCap),pc(beCap,x.capex,false)]);
  // Required return = IRR
  const beR=(I.v!==null&&I.all.length===1&&I.ch===1)?I.v*100:null;
- rows.push(["r",beR,"Required return (WACC)",x.r.toFixed(1)+"%",beR===null?"Not defined (see IRR)":beR.toFixed(4)+"% (= IRR)",beR===null?"—":(beR>x.r?"Can rise "+(beR-x.r).toFixed(2)+" pts":"Must fall "+(x.r-beR).toFixed(2)+" pts")]);
+ rows.push(["r",beR,"Required return (WACC)",String(+x.r.toFixed(4))+"%",beR===null?"Not defined (see IRR)":beR.toFixed(4)+"% (= IRR)",beR===null?"—":(beR>x.r?"Can rise "+(beR-x.r).toFixed(2)+" pts":"Must fall "+(x.r-beR).toFixed(2)+" pts")]);
  // Growth
  const beG=bisect(g=>npv({...x,g}),-90,300);
- rows.push(["g",beG,"Cash-flow growth",(x.g<0?"−":"")+Math.abs(x.g).toFixed(1)+"%",beG===null?"Not found (−90% to 300%)":pctS(beG),beG===null?"—":(beG<x.g?"Can fall "+(x.g-beG).toFixed(2)+" pts":"Must rise "+(beG-x.g).toFixed(2)+" pts")]);
+ rows.push(["g",beG,"Cash-flow growth",(x.g<0?"−":"")+String(+Math.abs(x.g).toFixed(4))+"%",beG===null?"Not found (−90% to 300%)":pctS(beG),beG===null?"—":(beG<x.g?"Can fall "+(x.g-beG).toFixed(2)+" pts":"Must rise "+(beG-x.g).toFixed(2)+" pts")]);
  // Life
- let beN=null;for(let k=1;k<=50;k++){const o={};for(const y in x.ovr)if(+y<=k)o[y]=x.ovr[y];if(npv({...x,n:k,ovr:o})>=0){beN=k;break}}
+ let beN=null;for(let k=1;k<=50;k++){const o={};for(const y in x.ovr)if(+y<=k)o[y]=x.ovr[y];if(npv({...x,n:k,ovr:o})>=-ZT){beN=k;break}}
  rows.push(["n",beN,"Project life",x.n+" yrs",beN===null?"Over 50 yrs":beN+" yrs (shortest life with NPV ≥ 0)",beN===null?"—":(beN<x.n?(x.n-beN)+" yr"+(x.n-beN>1?"s":"")+" of cushion":beN===x.n?"No cushion":"Needs "+(beN-x.n)+" more yr"+(beN-x.n>1?"s":""))]);
  // Extra final-year cash flow
- const beTV=x.tv-n*Math.pow(1+x.r/100,x.n);
- rows.push(["tv",beTV>x.tv?beTV:null,"Extra cash flow in final year","$"+Math.round(x.tv).toLocaleString("en-US")+"K",beTV<=x.tv?(x.tv>0?kK(Math.max(beTV,0)):"Not needed (NPV ≥ 0 without it)"):kK(beTV),beTV<=x.tv?(x.tv>0?(beTV<=0?"Not needed at all":pc(beTV,x.tv,true)):"—"):"Needs +"+kK(beTV-x.tv).replace("−","")]);
+ const beTV=Math.abs(n)<ZT?x.tv:x.tv-n*Math.pow(1+x.r/100,x.n);
+ rows.push(["tv",beTV>x.tv?beTV:null,"Extra cash flow in final year","$"+(+x.tv).toLocaleString("en-US",{maximumFractionDigits:4})+"K",beTV<=x.tv?(x.tv>0?kK(Math.max(beTV,0)):"Not needed (NPV ≥ 0 without it)"):kK(beTV),beTV<=x.tv?(x.tv>0?(beTV<=0?"Not needed at all":pc(beTV,x.tv,true)):"—"):"Needs +"+kK(beTV-x.tv).replace("−","")]);
  let h=`<tr><th>Input</th><th>Current</th><th>Break-even</th><th>Margin of safety</th><th></th></tr>`;
- rows.forEach((r,i)=>{const bad=/^Must|^Needs|^No cushion/.test(r[5]);const p=P.find(q=>q.k===r[0]);
-  const can=r[1]!==null&&isFinite(r[1])&&r[1]>=p.min&&r[1]<=p.max&&Math.abs(r[1]-x[r[0]])>1e-9;
-  h+=`<tr><td>${r[2]}</td><td>${r[3]}</td><td><b>${r[4]}</b></td><td class="${r[5]==="—"?"":(bad?"neg":"pos")}">${r[5]}</td><td>${can?`<button class="b-light" data-be="${i}" style="padding:5px 12px">Set</button>`:""}</td></tr>`});
+ rows.forEach((r,i)=>{const p=P.find(q=>q.k===r[0]);
+  const atBE=Math.abs(n)<ZT;if(atBE&&r[5]!=="—")r[5]="At break-even";
+  const can=!atBE&&r[0]!=="n"&&r[1]!==null&&isFinite(r[1])&&r[1]>=p.min&&r[1]<=p.max&&Math.abs(r[1]-x[r[0]])>1e-9;
+  const bad=/^Must|^Needs|^No cushion/.test(r[5]);h+=`<tr><td>${r[2]}</td><td>${r[3]}</td><td><b>${r[4]}</b></td><td class="${r[5]==="—"||r[5]==="At break-even"?"":(bad?"neg":"pos")}">${r[5]}</td><td>${can?`<button class="b-light" data-be="${i}" style="padding:5px 12px">Set</button>`:""}</td></tr>`});
  $("beTbl").innerHTML=h;
  $("beTbl").querySelectorAll("[data-be]").forEach(btn=>btn.onclick=()=>{const r=rows[+btn.dataset.be];applyExact(r[0],r[1])})}
 function drawChart(cf,I,n,x){
@@ -343,7 +346,7 @@ function renderCards(){
  else{pc.className="card idle";pc.innerHTML=`<h2>Your prediction</h2><p style="margin:0 0 10px">${on?"Move a slider, type a value or pick a scenario, then predict here before the result is shown.":"Predict mode is off: results update instantly. Turn it on in the top bar."}</p><div class="btns"><button class="b-light" disabled>NPV rises ↑</button><button class="b-light" disabled>NPV falls ↓</button><button class="b-light" disabled>About the same</button></div>`}
  if(rev&&!ch.length){rc.hidden=false;const w={up:"rose",down:"fell",same:"barely moved"};
   const ok=rev.pred?(rev.pred===rev.actual?'<span class="ok">Correct.</span> ':'<span class="bad">Not quite.</span> You predicted '+({up:"a rise",down:"a fall",same:"no change"}[rev.pred])+". "):"";
-  const flip=(rev.from>=0)!==(rev.to>=0)?` <b>The decision flipped to ${rev.to>=0?"accept":"reject"}.</b>`:"";
+  const flip=sgn(rev.from)!==sgn(rev.to)?(sgn(rev.to)===0?` <b>The project is now at break-even (NPV = 0).</b>`:` <b>The decision flipped to ${sgn(rev.to)>0?"accept":"reject"}.</b>`):"";
   rc.className="card";rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?"+":""}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(d=>`<li><b>${d.p.l}</b>${d.p.k==="ovr"?"":" "+lab(d.p,d.from)+" to "+lab(d.p,d.to)}: ${d.d>=0?"+":""}${money(d.d)}. ${REASON[d.p.k][d.up?0:1]}</li>`).join("")}</ul><div class="btns"><button class="b-dark" id="done">Done</button></div>`;
   $("done").onclick=()=>{rev=null;update()}}
  else rc.hidden=true}
