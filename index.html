@@ -123,6 +123,11 @@ textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px so
       <div class="tiles" id="tiles"></div>
       <div class="decision" id="dec"></div>
     </section>
+    <section class="card">
+      <h2>Break-even points <span style="font-size:15px;color:var(--muted);font-family:'Nunito Sans',Arial,sans-serif;font-weight:700">· value that makes NPV = 0, other inputs unchanged</span></h2>
+      <div class="tablewrap"><table id="beTbl"></table></div>
+      <p class="note">Margin of safety = how far the input can move against you before the decision flips. Click <b>Set</b> for exactly NPV = $0; typing a rounded value leaves a small gap. Project life moves in whole years, so it rarely hits exactly $0.</p>
+    </section>
     <div class="two">
       <section class="card">
         <h2>NPV profile</h2>
@@ -177,10 +182,10 @@ let cur=base(), live=base(), rev=null, right=0, total=0, log=[];
 const SH0={units:1,shares:10};
 let SH=Object.assign({},SH0);
 const $=id=>document.getElementById(id);
-const fmtIn=(p,v)=>p.dec?(+v).toFixed(p.dec):String(v);
-const lab=(p,v)=>(p.pre||"")+(p.pre==="$"?Number(v).toLocaleString("en-US"):fmtIn(p,v))+(p.suf==="K"?"K":(p.suf?(p.suf==="%"?"%":" "+p.suf):""));
+const fmtIn=(p,v)=>{v=+v;const onStep=Math.abs(v/p.st-Math.round(v/p.st))<1e-9;if(onStep)return p.dec?v.toFixed(p.dec):String(v);return String(+v.toFixed(p.k==="n"?0:6))};
+const lab=(p,v)=>(p.pre||"")+(p.pre==="$"?Number(v).toLocaleString("en-US",{maximumFractionDigits:2}):fmtIn(p,v))+(p.suf==="K"?"K":(p.suf?(p.suf==="%"?"%":" "+p.suf):""));
 const money=v=>{if(!isFinite(v))return "—";const d=Math.round(v*1000);return (d<0?"−$":"$")+Math.abs(d).toLocaleString("en-US")};
-const clampP=(p,v)=>{const d=(String(p.st).split(".")[1]||"").length;v=+(Math.round(v/p.st)*p.st).toFixed(d);return Math.min(p.max,Math.max(p.min,v))};
+const clampP=(p,v,fine)=>{if(fine){v=(p.k==="n")?Math.round(v):+v.toFixed(6)}else{const d=(String(p.st).split(".")[1]||"").length;v=+(Math.round(v/p.st)*p.st).toFixed(d)}return Math.min(p.max,Math.max(p.min,v))};
 const sameOvr=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 
 /* ---------- finance ---------- */
@@ -228,14 +233,15 @@ function buildField(p,host,isShare){
  <div class="warn" id="w-${p.k}"></div>`;
  host.appendChild(w);
  const s=$("s-"+p.k),n=$("n-"+p.k);
- const setv=v=>{v=clampP(p,v);if(isShare){SH[p.k]=v;renderShare(npv(cur));syncField(p,true);return}
+ const setv=(v,fine)=>{v=clampP(p,v,fine);if(isShare){SH[p.k]=v;renderShare(npv(cur));syncField(p,true);return}
   if(live[p.k]===v){syncField(p);return}live[p.k]=v;if(p.k==="n"){for(const y in live.ovr)if(+y>v)delete live.ovr[y]}rev=null;update()};
  s.addEventListener("input",()=>{$("w-"+p.k).textContent="";setv(parseFloat(s.value))});
  const box=()=>{const raw=n.value.replace(/[$,%\sKkMm]/g,"").replace("−","-"),v=parseFloat(raw),wn=$("w-"+p.k);
   if(raw===""||!isFinite(v)){wn.textContent="Please type a number.";syncField(p,isShare);return}
-  const c=clampP(p,v);wn.textContent=(v<p.min||v>p.max)?`Allowed range: ${p.min} to ${p.max.toLocaleString("en-US")}. Set to ${c}.`:"";setv(c)};
+  const c=clampP(p,v,true);wn.textContent=(v<p.min||v>p.max)?`Allowed range: ${p.min} to ${p.max.toLocaleString("en-US")}. Set to ${c}.`:"";setv(c,true)};
  n.addEventListener("change",box);n.addEventListener("keydown",e=>{if(e.key==="Enter")n.blur()});
 }
+function applyExact(k,v){const p=P.find(q=>q.k===k);if(!p||!isFinite(v))return;v=Math.min(p.max,Math.max(p.min,k==="n"?Math.round(v):v));if(live[k]===v)return;live[k]=v;if(k==="n"){for(const y in live.ovr)if(+y>v)delete live.ovr[y]}rev=null;update()}
 function syncField(p,isShare){const s=$("s-"+p.k),n=$("n-"+p.k);if(!s||!n)return;const v=isShare?SH[p.k]:live[p.k];s.value=v;if(document.activeElement!==n)n.value=fmtIn(p,v);
  if(!isShare){const ch=live[p.k]!==cur[p.k];$("row-"+p.k).classList.toggle("chg",ch);$("was-"+p.k).textContent=ch?`(was ${lab(p,cur[p.k])})`:""}}
 function syncAll(){P.forEach(p=>syncField(p));SHP.forEach(p=>syncField(p,true))}
@@ -273,9 +279,41 @@ function renderResult(){
  let t=`<tr><th>Year</th><th>Cash flow</th><th>Cumulative CF</th><th>PV at ${x.r.toFixed(1)}%</th><th>Cumulative PV</th></tr>`;
  cf.forEach((c,i)=>{c1+=c;c2+=pv[i];t+=`<tr><td>${i}${i===x.n&&x.tv>0?" (incl. extra)":""}${(i in x.ovr)?" (edited)":""}</td><td>${f(c)}</td><td>${f(c1)}</td><td>${f(pv[i])}</td><td>${f(c2)}</td></tr>`});
  t+=`<tr><td><b>NPV</b></td><td></td><td></td><td></td><td><b>${money(n)}</b></td></tr>`;$("tbl").innerHTML=t;
- drawChart(cf,I,n,x);renderShare(n);
+ drawChart(cf,I,n,x);renderShare(n);renderBreak(x,n,I);
  $("score").textContent=total?`Predictions correct: ${right} of ${total}`:"";
 }
+function bisect(f,lo,hi){let flo=f(lo),fhi=f(hi);if(!isFinite(flo)||!isFinite(fhi)||flo*fhi>0)return null;for(let k=0;k<100;k++){const m=(lo+hi)/2,fm=f(m);if(flo*fm<=0){hi=m;fhi=fm}else{lo=m;flo=fm}}return(lo+hi)/2}
+function renderBreak(x,n,I){
+ const kK=v=>(v<0?"−":"")+"$"+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:4,maximumFractionDigits:4})+"K";
+ const pctS=v=>(v<0?"−":"")+Math.abs(v).toFixed(4)+"%";
+ const pc=(be,curv,goodUp)=>{if(be===null||!isFinite(be))return"—";if(Math.abs(curv)<1e-9)return"—";const ch=(be-curv)/Math.abs(curv)*100;
+  const against=goodUp?ch<0:ch>0;return (against?"Can "+(goodUp?"fall":"rise")+" ":"Must "+(goodUp?"rise":"fall")+" ")+Math.abs(ch).toFixed(1)+"%"};
+ const rows=[];
+ // Year-1 cash flow (NPV linear in cf)
+ const a=npv({...x,cf:0}),b=npv({...x,cf:1})-a;
+ const beCF=Math.abs(b)<1e-12?null:-a/b;
+ rows.push(["cf",beCF,"Year-1 net cash flow","$"+Math.round(x.cf).toLocaleString("en-US")+"K",beCF===null?"Not defined":kK(beCF),beCF===null?"—":pc(beCF,x.cf,true)]);
+ // Initial investment
+ const beCap=n+x.capex;
+ rows.push(["capex",beCap<0?null:beCap,"Initial investment","$"+Math.round(x.capex).toLocaleString("en-US")+"K",beCap<0?"Not possible":kK(beCap),pc(beCap,x.capex,false)]);
+ // Required return = IRR
+ const beR=(I.v!==null&&I.all.length===1&&I.ch===1)?I.v*100:null;
+ rows.push(["r",beR,"Required return (WACC)",x.r.toFixed(1)+"%",beR===null?"Not defined (see IRR)":beR.toFixed(4)+"% (= IRR)",beR===null?"—":(beR>x.r?"Can rise "+(beR-x.r).toFixed(2)+" pts":"Must fall "+(x.r-beR).toFixed(2)+" pts")]);
+ // Growth
+ const beG=bisect(g=>npv({...x,g}),-90,300);
+ rows.push(["g",beG,"Cash-flow growth",(x.g<0?"−":"")+Math.abs(x.g).toFixed(1)+"%",beG===null?"Not found (−90% to 300%)":pctS(beG),beG===null?"—":(beG<x.g?"Can fall "+(x.g-beG).toFixed(2)+" pts":"Must rise "+(beG-x.g).toFixed(2)+" pts")]);
+ // Life
+ let beN=null;for(let k=1;k<=50;k++){const o={};for(const y in x.ovr)if(+y<=k)o[y]=x.ovr[y];if(npv({...x,n:k,ovr:o})>=0){beN=k;break}}
+ rows.push(["n",beN,"Project life",x.n+" yrs",beN===null?"Over 50 yrs":beN+" yrs (shortest life with NPV ≥ 0)",beN===null?"—":(beN<x.n?(x.n-beN)+" yr"+(x.n-beN>1?"s":"")+" of cushion":beN===x.n?"No cushion":"Needs "+(beN-x.n)+" more yr"+(beN-x.n>1?"s":""))]);
+ // Extra final-year cash flow
+ const beTV=x.tv-n*Math.pow(1+x.r/100,x.n);
+ rows.push(["tv",beTV>x.tv?beTV:null,"Extra cash flow in final year","$"+Math.round(x.tv).toLocaleString("en-US")+"K",beTV<=x.tv?(x.tv>0?kK(Math.max(beTV,0)):"Not needed (NPV ≥ 0 without it)"):kK(beTV),beTV<=x.tv?(x.tv>0?(beTV<=0?"Not needed at all":pc(beTV,x.tv,true)):"—"):"Needs +"+kK(beTV-x.tv).replace("−","")]);
+ let h=`<tr><th>Input</th><th>Current</th><th>Break-even</th><th>Margin of safety</th><th></th></tr>`;
+ rows.forEach((r,i)=>{const bad=/^Must|^Needs|^No cushion/.test(r[5]);const p=P.find(q=>q.k===r[0]);
+  const can=r[1]!==null&&isFinite(r[1])&&r[1]>=p.min&&r[1]<=p.max&&Math.abs(r[1]-x[r[0]])>1e-9;
+  h+=`<tr><td>${r[2]}</td><td>${r[3]}</td><td><b>${r[4]}</b></td><td class="${r[5]==="—"?"":(bad?"neg":"pos")}">${r[5]}</td><td>${can?`<button class="b-light" data-be="${i}" style="padding:5px 12px">Set</button>`:""}</td></tr>`});
+ $("beTbl").innerHTML=h;
+ $("beTbl").querySelectorAll("[data-be]").forEach(btn=>btn.onclick=()=>{const r=rows[+btn.dataset.be];applyExact(r[0],r[1])})}
 function drawChart(cf,I,n,x){
  const W=640,H=330,L=64,R=16,T=20,B=44;
  let rmax=Math.max(25,x.r*1.6,(I.v!==null&&I.v>0&&I.all.length===1)?Math.min(I.v*100*1.6,100):0);rmax=Math.min(Math.ceil(rmax/5)*5,100);
