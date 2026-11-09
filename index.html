@@ -1,180 +1,357 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Capital Budgeting Simulator</title>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f2f4f7;--panel:#fff;--ink:#14213d;--mute:#5b6577;--line:#d9dee7;--ok:#0f766e;--bad:#b3261e;--stage:#b7791f;--accent:#1d4ed8;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1420;--panel:#172033;--ink:#e8edf6;--mute:#93a0b8;--line:#2a3550;--ok:#3fbfae;--bad:#f07a70;--stage:#e0a943;--accent:#7aa2ff}}
-:root[data-theme="dark"]{--bg:#0e1420;--panel:#172033;--ink:#e8edf6;--mute:#93a0b8;--line:#2a3550;--ok:#3fbfae;--bad:#f07a70;--stage:#e0a943;--accent:#7aa2ff}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{--navy:#14213D;--cream:#FFF6EC;--card:#FFFDF9;--line:#F1D3B5;--or:#F26B21;--ort:#B8410E;--teal:#0E7C86;--tealL:#5CC8D0;--body:#3D4A63;--muted:#6A7385;--peach:#FFD9BF;--mint:#D9F0F2}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:1080px;margin:0 auto;padding:20px 16px 40px}
-h1{font-size:1.6rem;font-weight:800;margin:0 0 2px;letter-spacing:-.01em}
-.by{margin:2px 0 10px;color:var(--mute);font-size:.9rem;line-height:1.35}.by b{color:var(--ink)}
-.sub{color:var(--mute);margin:0 0 18px}
-.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:16px}
-@media(max-width:800px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
-.card h2{font-size:1rem;margin:0 0 10px;font-weight:600}
-.row{margin-bottom:14px}
-.row label{display:flex;justify-content:space-between;gap:8px;font-size:.92rem}
-.row output{font-weight:600}
-.row.chg output{color:var(--stage)}
-.row small{color:var(--mute);font-weight:400}
-input[type=range]{width:100%;accent-color:var(--accent);height:28px}
-button{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
-button:hover{border-color:var(--accent)}
-button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btns{display:flex;flex-wrap:wrap;gap:8px}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-@media(max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
-.tile{background:var(--bg);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;padding:8px 6px;text-align:center}
-.tile span{display:block;font-size:.72rem;color:var(--mute);margin-bottom:2px;white-space:nowrap}
-.tile b{font-size:1.2rem;font-weight:800;line-height:1.2}
-.pos{color:var(--ok)}.neg{color:var(--bad)}
-.decision{margin-top:10px;padding:10px 12px;border-radius:8px;font-weight:600;border:1px solid currentColor}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.88rem}
-th,td{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line)}
-th:first-child,td:first-child{text-align:left}
-.predict{border-color:var(--stage)}
-.predict h2{color:var(--stage)}
-textarea{width:100%;font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}
-ul.drv{padding-left:18px;margin:8px 0}
-.mute{color:var(--mute);font-size:.88rem}
-.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-svg{width:100%;height:auto;display:block}
-svg text{fill:var(--mute);font-size:11px;font-family:inherit}
-#pcard.idle h2{color:var(--ink)}
+body{margin:0;background:var(--cream);color:var(--navy);font:17px/1.45 'Nunito Sans',Arial,sans-serif}
+h1,h2,h3{font-family:'Fredoka',Verdana,sans-serif;margin:0}
+header{background:var(--navy);color:var(--cream);padding:18px 24px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+header h1{font-size:28px}
+.by{color:#E9DFD3;font-size:15px;margin-top:2px}.by b{color:var(--cream)}
+.toggle{display:flex;align-items:center;gap:8px;color:var(--cream);font-weight:700;cursor:pointer}
+.toggle input{width:22px;height:22px;accent-color:var(--or)}
+main{display:grid;grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:20px;padding:20px 24px 40px;max-width:1400px;margin:0 auto}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:14px}}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px}
+.card h2{font-size:22px;margin-bottom:12px}
+.note{color:var(--muted);font-size:14px;margin:8px 0 0}
+button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:9px 16px;cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}
-#chatlog{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin:8px 0}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.b-or{background:var(--or);color:var(--navy)}
+.b-teal{background:var(--tealL);color:var(--navy)}
+.b-dark{background:var(--navy);color:var(--cream)}
+.b-light{background:var(--card);color:var(--navy);border:2px solid var(--line)}
+.b-light:hover{border-color:var(--or)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+/* inputs */
+.field{margin-bottom:16px}
+.field label{display:block;font-weight:700;font-size:15px;margin-bottom:4px}
+.field .hint{font-weight:400;color:var(--muted);font-size:13px}
+.field .was{font-weight:700;color:var(--ort);font-size:13px}
+.field.chg .num{border-color:var(--or);background:#FFF1E6}
+.inrow{display:flex;gap:10px;align-items:center}
+input[type=range]{flex:1;min-width:0;accent-color:var(--or);height:28px}
+.num{display:flex;align-items:center;border:2px solid var(--line);border-radius:10px;background:#fff;padding:0 8px;width:132px;flex:none}
+.num span{color:var(--muted);font-size:14px;white-space:nowrap}
+.num input{border:0;outline:0;width:100%;font:inherit;font-weight:700;padding:8px 4px;text-align:right;background:transparent;color:var(--navy)}
+.num:focus-within{border-color:var(--teal)}
+.warn{color:var(--ort);font-size:13px}
+details{margin-top:4px}
+summary{cursor:pointer;font-weight:800;color:var(--teal);padding:6px 0}
+/* predict */
+.predict{border-color:var(--or);background:#FFF1E6}
+.predict h2{color:var(--ort)}
+.idle h2{color:var(--navy)}
+.ok{color:var(--teal);font-weight:800}.bad{color:var(--ort);font-weight:800}
+ul.drv{padding-left:20px;margin:8px 0}
+ul.drv li{margin-bottom:6px}
+/* results */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:1100px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.res{background:var(--card);border:2px solid var(--line);border-top:10px solid #B9C2D3;border-radius:16px;padding:14px}
+.res .k{font-size:13px;font-weight:800;color:var(--body);text-transform:uppercase;letter-spacing:1px}
+.res .v{font-family:'Fredoka',Verdana,sans-serif;font-size:28px;font-weight:700;margin:6px 0;word-break:break-word}
+.res .d{font-weight:800;font-size:14px;color:var(--muted)}
+.acc{border-top-color:var(--teal)}.acc .d{color:var(--teal)}
+.rej{border-top-color:var(--or)}.rej .d{color:var(--ort)}
+.decision{margin-top:14px;padding:12px 16px;border-radius:14px;font-weight:800}
+.decision.yes{background:var(--mint);color:#0B5F66}.decision.no{background:var(--peach);color:#8A3009}
+.decision .sub{font-weight:400;color:var(--body);font-size:14px;margin-top:4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:1100px){.two{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:15px}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--body);font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+td input{width:100px;border:2px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;text-align:right}
+td input.over{border-color:var(--or);background:#FFF1E6}
+.tablewrap{overflow-x:auto}
+.pos{color:var(--teal);font-weight:700}.neg{color:var(--ort);font-weight:700}
+svg text{font-family:'Nunito Sans',Arial,sans-serif}
+.big{font-family:'Fredoka',Verdana,sans-serif;font-size:28px;font-weight:700;margin-top:6px}
+/* chat */
+#chatlog{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin:8px 0}
 #chatlog:empty{display:none}
-.msg{white-space:pre-wrap;padding:8px 10px;border-radius:8px;max-width:92%;border:1px solid var(--line)}
-.msg.user{align-self:flex-end;background:var(--accent);border-color:var(--accent);color:#fff}
-.msg.ai{align-self:flex-start;background:var(--bg)}
-</style></head>
-<body><main>
-<h1>Capital budgeting simulator</h1>
-<p class="by"><b>Kawser Ahmed Shiblu</b><br>Wayne State University</p>
-<p class="sub">Change an assumption, predict what happens to NPV, then see the result.</p>
-<div class="grid">
-<div>
- <div class="card"><div class="top"><h2>Assumptions</h2><label class="mute"><input type="checkbox" id="instant"> Update instantly (skip prediction)</label></div>
-  <div id="sliders"></div>
-  <p class="mute">Net cash flows already include everything (taxes, working capital, disposal). Year 0 is the investment; later cash flows arrive at year-end. Figures in $ thousands.</p>
- </div>
- <div class="card"><h2>Scenarios</h2><div class="btns" id="scen"></div><div class="btns" style="margin-top:8px"><button id="reset">Reset all</button></div><p class="mute" id="score" style="margin:8px 0 0"></p></div>
-</div>
-<div>
- <div class="card" id="pcard" hidden></div>
- <div class="card" id="rcard" hidden></div>
- <div class="card"><h2>Result</h2>
-  <div class="tiles" id="tiles"></div><div class="decision" id="dec"></div>
-  <div class="scroll" style="margin-top:12px"><table id="tbl"></table></div>
- </div>
- <div class="card"><h2>NPV profile</h2><div id="chart"></div><p class="mute">NPV at different discount rates. Where the line crosses zero is the IRR.</p></div>
- <div class="card" id="aicard"><h2>Chat support</h2><p class="mute" style="margin-top:0" id="aist">Checking AI connection...</p><div id="chatlog" aria-live="polite"></div><div class="btns"><button data-q="Explain in 3 sentences what drives this NPV.">Explain this result</button><button data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Give me scenarios</button></div><textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea><div class="btns" style="margin-top:8px"><button class="primary" id="aisend">Send</button><button id="aiclear">New chat</button></div></div>
- <textarea id="ptxt" hidden></textarea>
-</div></div>
+.msg{white-space:pre-wrap;padding:10px 12px;border-radius:14px;max-width:92%}
+.msg.user{align-self:flex-end;background:var(--navy);color:var(--cream)}
+.msg.ai{align-self:flex-start;background:var(--mint);color:var(--navy)}
+textarea{width:100%;font:inherit;background:#fff;color:var(--navy);border:2px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;resize:vertical}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Capital Budgeting Simulator</h1>
+    <div class="by"><b>Kawser Ahmed Shiblu</b> · Wayne State University</div>
+  </div>
+  <label class="toggle"><input type="checkbox" id="predictOn" checked> Predict mode</label>
+</header>
+
+<main>
+  <div class="col">
+    <section class="card" aria-label="Assumptions">
+      <h2>Assumptions</h2>
+      <div id="fields"></div>
+      <details id="adv">
+        <summary>Advanced: edit any year’s cash flow</summary>
+        <p class="note">Type a value to override that year (shown in orange). Negative values are allowed, e.g. a mid-life repair. Leave blank to use the model.</p>
+        <div class="tablewrap"><table id="ovr"></table></div>
+        <button class="b-light" id="clearOvr" style="margin-top:10px">Clear overrides</button>
+      </details>
+      <p class="note">Net cash flows already include everything (taxes, working capital, disposal). Year 0 is the investment; later cash flows arrive at year-end. Figures in $ thousands.</p>
+    </section>
+    <section class="card" aria-label="Scenarios">
+      <h2>Scenarios</h2>
+      <div class="btns" id="scen"></div>
+      <div class="btns" style="margin-top:10px"><button class="b-or" id="reset">Reset all</button></div>
+      <p class="note" id="score"></p>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card" id="pcard"></section>
+    <section class="card" id="rcard" hidden></section>
+    <section class="card">
+      <h2>Result</h2>
+      <div class="tiles" id="tiles"></div>
+      <div class="decision" id="dec"></div>
+    </section>
+    <div class="two">
+      <section class="card">
+        <h2>NPV profile</h2>
+        <div id="chart"></div>
+        <p class="note">Where the line crosses zero is the IRR. Orange dot = NPV at your required return.</p>
+      </section>
+      <section class="card">
+        <h2>From project to share price</h2>
+        <div id="share"></div>
+        <div class="big" id="shareOut"></div>
+        <p class="note" id="shareNote"></p>
+      </section>
+    </div>
+    <section class="card">
+      <h2>Cash-flow table</h2>
+      <div class="tablewrap"><table id="tbl"></table></div>
+    </section>
+    <section class="card" id="aicard">
+      <h2>Chat support</h2>
+      <p class="note" style="margin-top:0" id="aist">Checking AI connection...</p>
+      <div id="chatlog" aria-live="polite"></div>
+      <div class="btns" style="margin-top:8px">
+        <button class="b-teal" data-q="Explain in 3 sentences what drives this NPV.">Explain this result</button>
+        <button class="b-teal" data-q="Give 3 realistic business scenarios with specific new values for the inputs, and ask me to predict each before I run it.">Give me scenarios</button>
+      </div>
+      <textarea id="aiq" rows="2" placeholder="Ask a question about this case"></textarea>
+      <div class="btns" style="margin-top:8px"><button class="b-dark" id="aisend">Send</button><button class="b-light" id="aiclear">New chat</button></div>
+    </section>
+  </div>
 </main>
+
 <script>
+(function(){
+"use strict";
+/* ---------- inputs ---------- */
 const P=[
-{k:'capex',l:'Initial investment (Year 0)',min:500,max:2000,st:50,v:1000,f:v=>'$'+v.toLocaleString()+'k'},
-{k:'cf',l:'Year-1 net cash flow',min:100,max:600,st:25,v:300,f:v=>'$'+v.toLocaleString()+'k'},
-{k:'g',l:'Cash flow growth per year',min:-10,max:20,st:1,v:0,f:v=>v+'%'},
-{k:'n',l:'Project life',min:2,max:10,st:1,v:5,f:v=>v+' years'},
-{k:'tv',l:'Extra cash flow in final year',min:0,max:1000,st:50,v:0,f:v=>'$'+v.toLocaleString()+'k'},
-{k:'r',l:'Required return',min:4,max:20,st:.5,v:10,f:v=>v+'%'},
-{k:'cut',l:'Payback cutoff',min:1,max:8,st:.5,v:3,f:v=>v+' yrs'}];
-const base=()=>Object.fromEntries(P.map(p=>[p.k,p.v]));
-let cur=base(),live=base(),rev=null,right=0,total=0,log=[];
+ {k:"capex",l:"Initial investment (Year 0)",hint:"",min:0,max:5000,st:1,pre:"$",suf:"K",dec:0},
+ {k:"cf",l:"Year-1 net cash flow",hint:"",min:0,max:2000,st:1,pre:"$",suf:"K",dec:0},
+ {k:"g",l:"Cash-flow growth per year",hint:"after Year 1",min:-20,max:20,st:0.5,pre:"",suf:"%",dec:1},
+ {k:"n",l:"Project life",hint:"",min:1,max:20,st:1,pre:"",suf:"yrs",dec:0},
+ {k:"tv",l:"Extra cash flow in final year",hint:"salvage / resale",min:0,max:5000,st:1,pre:"$",suf:"K",dec:0},
+ {k:"r",l:"Required return (WACC)",hint:"",min:1,max:25,st:0.1,pre:"",suf:"%",dec:1},
+ {k:"cut",l:"Payback cutoff",hint:"management’s rule",min:1,max:10,st:0.5,pre:"",suf:"yrs",dec:1}
+];
+const SHP=[
+ {k:"units",l:"Number of identical projects",hint:"e.g. stores, plants, machines",min:1,max:5000,st:1,pre:"",suf:"",dec:0},
+ {k:"shares",l:"Shares outstanding",hint:"",min:0.1,max:20000,st:0.1,pre:"",suf:"M",dec:1}
+];
+const CASE={capex:1000,cf:300,g:0,n:5,tv:0,r:10,cut:3,ovr:{}};
+const base=()=>JSON.parse(JSON.stringify(CASE));
+let cur=base(), live=base(), rev=null, right=0, total=0, log=[];
+const SH0={units:1,shares:10};
+let SH=Object.assign({},SH0);
 const $=id=>document.getElementById(id);
-const money=n=>(n<0?'\u2212':'')+'$'+Math.abs(Math.round(n)).toLocaleString()+'k';
-function flows(x){const a=[];for(let t=0;t<x.n;t++)a.push(x.cf*Math.pow(1+x.g/100,t)+(t===x.n-1?x.tv:0));return a}
-function npv(x,r){r=r===undefined?x.r/100:r;return flows(x).reduce((s,c,i)=>s+c/Math.pow(1+r,i+1),-x.capex)}
-function irr(x){let lo=-.9,hi=1;const f=r=>npv(x,r);if(f(lo)*f(hi)>0)return null;for(let i=0;i<80;i++){const m=(lo+hi)/2;if(f(lo)*f(m)<=0)hi=m;else lo=m}return(lo+hi)/2}
-function payback(x){let c=-x.capex;const fl=flows(x);for(let i=0;i<fl.length;i++){if(c+fl[i]>=0)return i+(-c)/fl[i];c+=fl[i]}return null}
-function dpayback(x){let c=-x.capex;const fl=flows(x);for(let i=0;i<fl.length;i++){const pv=fl[i]/Math.pow(1+x.r/100,i+1);if(c+pv>=0)return i+(-c)/pv;c+=pv}return null}
-const clamp=(p,v)=>Math.min(p.max,Math.max(p.min,v));
-const changed=()=>P.filter(p=>live[p.k]!==cur[p.k]);
+const fmtIn=(p,v)=>p.dec?(+v).toFixed(p.dec):String(v);
+const lab=(p,v)=>(p.pre||"")+(p.pre==="$"?Number(v).toLocaleString("en-US"):fmtIn(p,v))+(p.suf==="K"?"K":(p.suf?(p.suf==="%"?"%":" "+p.suf):""));
+const money=v=>{if(!isFinite(v))return "—";const d=Math.round(v*1000);return (d<0?"−$":"$")+Math.abs(d).toLocaleString("en-US")};
+const clampP=(p,v)=>{const d=(String(p.st).split(".")[1]||"").length;v=+(Math.round(v/p.st)*p.st).toFixed(d);return Math.min(p.max,Math.max(p.min,v))};
+const sameOvr=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+
+/* ---------- finance ---------- */
+function flows(x){const a=[-x.capex];for(let t=1;t<=x.n;t++){let c=(t in x.ovr)?x.ovr[t]:x.cf*Math.pow(1+x.g/100,t-1);if(t===x.n)c+=x.tv;a.push(c)}return a}
+const npvA=(cf,r)=>cf.reduce((s,c,t)=>s+c/Math.pow(1+r,t),0);
+const npv=(x,r)=>npvA(flows(x),r===undefined?x.r/100:r);
+function irr(x){const cf=flows(x);const sg=cf.filter(c=>Math.abs(c)>1e-9).map(Math.sign);let ch=0;for(let i=1;i<sg.length;i++)if(sg[i]!==sg[i-1])ch++;
+ if(ch===0)return{v:null,all:[],ch};const roots=[];let lo=-0.9,flo=npvA(cf,lo);
+ for(let i=1;i<=2000;i++){const hi=-0.9+i*(10.9/2000),fhi=npvA(cf,hi);
+  if(isFinite(flo)&&isFinite(fhi)&&(flo===0||flo*fhi<0)){let a=lo,b=hi,fa=flo;for(let k=0;k<80;k++){const m=(a+b)/2,fm=npvA(cf,m);if(fa*fm<=0)b=m;else{a=m;fa=fm}}roots.push((a+b)/2)}
+  lo=hi;flo=fhi}
+ return{v:roots.length?roots[0]:null,all:roots,ch}}
+function pbA(v){let c=v[0];if(c>=0)return 0;for(let t=1;t<v.length;t++){const p=c;c+=v[t];if(c>=0&&v[t]>0)return(t-1)+(-p/v[t])}return null}
+const payback=x=>pbA(flows(x));
+const dpayback=x=>pbA(flows(x).map((c,t)=>c/Math.pow(1+x.r/100,t)));
+
+/* ---------- predict logic ---------- */
+const changed=()=>{const c=P.filter(p=>live[p.k]!==cur[p.k]);if(!sameOvr(live.ovr,cur.ovr))c.push({k:"ovr",l:"Year-by-year cash flows",f:()=>""});return c};
 const REASON={
-capex:['Costs more at Year 0, with the same future cash flows, so NPV falls.','Costs less at Year 0, with the same future cash flows, so NPV rises.'],
-cf:['Every year\'s cash flow is larger, so PV of inflows rises.','Every year\'s cash flow is smaller, so PV of inflows falls.'],
-g:['Faster growth raises later cash flows the most, and later cash flows are discounted the most.','Slower growth lowers later cash flows the most.'],
-n:['Extra years add more positive cash flows, each discounted back to today.','Fewer years drop later cash flows, so less value is counted.'],
-tv:['A larger final-year cash flow adds value, but it is discounted for the whole project life.','A smaller final-year cash flow removes value, but it was heavily discounted.'],
-r:['Every cash flow is discounted harder, and distant years lose the most.','Every cash flow is discounted less, and distant years gain the most.'],
-cut:['A longer cutoff is management\'s benchmark only. It does not change any cash flow, so NPV does not move.','A shorter cutoff is management\'s benchmark only. It does not change any cash flow, so NPV does not move.']};
-function buildSliders(){$('sliders').innerHTML=P.map(p=>`<div class="row" id="row-${p.k}"><label for="s-${p.k}"><span>${p.l}</span><output id="o-${p.k}"></output></label><input type="range" id="s-${p.k}" min="${p.min}" max="${p.max}" step="${p.st}"></div>`).join('');
-P.forEach(p=>{const s=$('s-'+p.k);s.value=live[p.k];s.oninput=()=>{live[p.k]=+s.value;rev=null;update()}})}
-function syncSliders(){P.forEach(p=>{const s=$('s-'+p.k);s.value=live[p.k];const ch=live[p.k]!==cur[p.k];$('row-'+p.k).className='row'+(ch?' chg':'');$('o-'+p.k).innerHTML=ch?`${p.f(live[p.k])} <small>(was ${p.f(cur[p.k])})</small>`:p.f(live[p.k])})}
+ capex:["Costs more at Year 0, with the same future cash flows, so NPV falls.","Costs less at Year 0, with the same future cash flows, so NPV rises."],
+ cf:["Every year’s cash flow is larger, so the PV of inflows rises.","Every year’s cash flow is smaller, so the PV of inflows falls."],
+ g:["Faster growth raises later cash flows the most, and later cash flows are discounted the most.","Slower growth lowers later cash flows the most."],
+ n:["Extra years add more cash flows, each discounted back to today.","Fewer years drop later cash flows, so less value is counted."],
+ tv:["A larger final-year cash flow adds value, but it is discounted for the whole project life.","A smaller final-year cash flow removes value, but it was heavily discounted."],
+ r:["Every cash flow is discounted harder, and distant years lose the most.","Every cash flow is discounted less, and distant years gain the most."],
+ cut:["The cutoff is management’s benchmark only. It changes no cash flow, so NPV does not move.","The cutoff is management’s benchmark only. It changes no cash flow, so NPV does not move."],
+ ovr:["You edited individual years’ cash flows; each change moves NPV by its present value.","You edited individual years’ cash flows; each change moves NPV by its present value."]};
+const TOL=0.5; // $500 counts as "about the same"
 function commit(pred){
  const from=npv(cur),ch=changed();
- const drivers=ch.map(p=>({p,up:live[p.k]>cur[p.k],from:cur[p.k],to:live[p.k],d:npv({...cur,[p.k]:live[p.k]})-from}));
- const entry={change:ch.map(p=>p.l+': '+p.f(cur[p.k])+' to '+p.f(live[p.k])).join('; '),pred:pred||'none',actual:'',from:Math.round(from),to:0,why:''};cur={...live};const to=npv(cur),d=to-from;
- const actual=d>5?'up':d<-5?'down':'same';entry.actual=actual;entry.to=Math.round(to);log.push(entry);
+ const drivers=ch.map(p=>{const alt=JSON.parse(JSON.stringify(cur));if(p.k==="ovr")alt.ovr=JSON.parse(JSON.stringify(live.ovr));else alt[p.k]=live[p.k];if(p.k==="n"){for(const y in alt.ovr)if(+y>alt.n)delete alt.ovr[y]}
+  return{p,up:p.k==="ovr"?true:live[p.k]>cur[p.k],from:cur[p.k],to:live[p.k],d:npv(alt)-from}});
+ cur=JSON.parse(JSON.stringify(live));const to=npv(cur),d=to-from;
+ const actual=d>TOL?"up":d<-TOL?"down":"same";
+ log.push({change:ch.map(p=>p.k==="ovr"?p.l:p.l+": "+lab(p,drivers.find(x=>x.p===p).from)+" to "+lab(p,live[p.k])).join("; "),pred:pred||"none",actual});
  if(pred){total++;if(pred===actual)right++}
- rev={pred,actual,from,to,d,drivers,entry};update()}
+ rev={pred,actual,from,to,d,drivers};update()}
+
+/* ---------- field widgets ---------- */
+function buildField(p,host,isShare){
+ const w=document.createElement("div");w.className="field";w.id="row-"+p.k;
+ w.innerHTML=`<label for="n-${p.k}">${p.l}${p.hint?` <span class="hint">· ${p.hint}</span>`:""} <span class="was" id="was-${p.k}"></span></label>
+ <div class="inrow"><input type="range" id="s-${p.k}" min="${p.min}" max="${p.max}" step="${p.st}" aria-label="${p.l} slider">
+ <div class="num">${p.pre?`<span>${p.pre}</span>`:""}<input id="n-${p.k}" inputmode="decimal" autocomplete="off">${p.suf?`<span>${p.suf}</span>`:""}</div></div>
+ <div class="warn" id="w-${p.k}"></div>`;
+ host.appendChild(w);
+ const s=$("s-"+p.k),n=$("n-"+p.k);
+ const setv=v=>{v=clampP(p,v);if(isShare){SH[p.k]=v;renderShare(npv(cur));syncField(p,true);return}
+  if(live[p.k]===v){syncField(p);return}live[p.k]=v;if(p.k==="n"){for(const y in live.ovr)if(+y>v)delete live.ovr[y]}rev=null;update()};
+ s.addEventListener("input",()=>{$("w-"+p.k).textContent="";setv(parseFloat(s.value))});
+ const box=()=>{const raw=n.value.replace(/[$,%\sKkMm]/g,"").replace("−","-"),v=parseFloat(raw),wn=$("w-"+p.k);
+  if(raw===""||!isFinite(v)){wn.textContent="Please type a number.";syncField(p,isShare);return}
+  const c=clampP(p,v);wn.textContent=(v<p.min||v>p.max)?`Allowed range: ${p.min} to ${p.max.toLocaleString("en-US")}. Set to ${c}.`:"";setv(c)};
+ n.addEventListener("change",box);n.addEventListener("keydown",e=>{if(e.key==="Enter")n.blur()});
+}
+function syncField(p,isShare){const s=$("s-"+p.k),n=$("n-"+p.k);if(!s||!n)return;const v=isShare?SH[p.k]:live[p.k];s.value=v;if(document.activeElement!==n)n.value=fmtIn(p,v);
+ if(!isShare){const ch=live[p.k]!==cur[p.k];$("row-"+p.k).classList.toggle("chg",ch);$("was-"+p.k).textContent=ch?`(was ${lab(p,cur[p.k])})`:""}}
+function syncAll(){P.forEach(p=>syncField(p));SHP.forEach(p=>syncField(p,true))}
+
+/* ---------- override table ---------- */
+function buildOvr(){
+ const a=document.activeElement;if(a&&a.dataset&&a.dataset.y)return;
+ let h=`<tr><th>Year</th><th>Model CF</th><th>Your CF</th></tr>`;
+ for(let t=1;t<=live.n;t++){const m=live.cf*Math.pow(1+live.g/100,t-1),has=(t in live.ovr);
+  h+=`<tr><td>${t}</td><td>${m.toFixed(2)}</td><td><input data-y="${t}" class="${has?"over":""}" value="${has?live.ovr[t]:""}" placeholder="—" inputmode="decimal" aria-label="Year ${t} cash flow override"></td></tr>`}
+ $("ovr").innerHTML=h;
+ $("ovr").querySelectorAll("input").forEach(inp=>{
+  const go=()=>{const y=+inp.dataset.y,raw=inp.value.replace(/[$,\s]/g,"").replace("−","-");
+   if(raw==="")delete live.ovr[y];else{const v=parseFloat(raw);if(!isFinite(v)){inp.value=(y in live.ovr)?live.ovr[y]:"";return}live.ovr[y]=Math.min(5000,Math.max(-5000,Math.round(v*100)/100))}
+   inp.blur();rev=null;update()};
+  inp.addEventListener("change",go);inp.addEventListener("keydown",e=>{if(e.key==="Enter")go()})})}
+
+/* ---------- render ---------- */
+const tile=(k,v,cls,d)=>`<div class="res ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
 function renderResult(){
- const n=npv(cur),i=irr(cur),pb=payback(cur),dp=dpayback(cur),fl=flows(cur);
- $('tiles').innerHTML=`<div class="tile"><span>NPV</span><b class="${n>=0?'pos':'neg'}">${money(n)}</b></div><div class="tile"><span>Payback</span><b>${pb===null?'never':pb.toFixed(1)+' yr'}</b></div><div class="tile"><span>Discounted payback</span><b>${dp===null?'never':dp.toFixed(1)+' yr'}</b></div><div class="tile"><span>IRR</span><b>${i===null?'n/a':(i*100).toFixed(1)+'%'}</b></div>`;
- const dc=$('dec');dc.className='decision '+(n>=0?'pos':'neg');const sc=v=>v===null?'never, fail':v.toFixed(1)+' yrs, '+(v<cur.cut?'pass':'fail');
- dc.innerHTML=(n>=0?'Accept: NPV is positive, so the project adds value.':'Reject: NPV is negative, so the project destroys value.')+`<div class="mute" style="font-weight:400;margin-top:4px">Secondary screens: payback ${sc(pb)} (cutoff ${cur.cut} yrs); discounted payback ${sc(dp)}; IRR ${i===null?'n/a':(i*100).toFixed(1)+'% vs r '+cur.r+'%, '+(i>cur.r/100?'pass':'fail')}. NPV decides.</div>`;
- const all=[-cur.capex].concat(fl);$('tbl').innerHTML='<tr><th>Year</th>'+all.map((_,t)=>`<th>${t}</th>`).join('')+'</tr><tr><td>Cash flow</td>'+all.map(c=>`<td>${Math.round(c)}</td>`).join('')+'</tr><tr><td>Present value</td>'+all.map((c,t)=>`<td>${Math.round(c/Math.pow(1+cur.r/100,t))}</td>`).join('')+'</tr>';
- // chart
- const W=400,H=190,L=44,B=24,pts=[];for(let r=0;r<=25;r+=.5)pts.push([r,npv(cur,r/100)]);
- const ys=pts.map(p=>p[1]).concat([0]),mn=Math.min(...ys),mx=Math.max(...ys);
- const X=r=>L+(r/25)*(W-L-8),Y=v=>8+(mx-v)/(mx-mn||1)*(H-B-8);
- const path=pts.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');
- $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="NPV profile"><line x1="${L}" x2="${W-8}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="${X(cur.r)}" cy="${Y(n)}" r="5" fill="${n>=0?'var(--ok)':'var(--bad)'}"/><text x="${L}" y="${H-6}">0%</text><text x="${X(12.5)-8}" y="${H-6}">12.5%</text><text x="${W-30}" y="${H-6}">25%</text><text x="2" y="${Y(mx)+10}">${Math.round(mx)}</text><text x="2" y="${Y(mn)}">${Math.round(mn)}</text></svg>`;
- $('score').textContent=total?`Predictions correct: ${right} of ${total}`:'';
- $('ptxt').value=`You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${cur.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${cur.cf}k in year 1 growing ${cur.g}%/yr for ${cur.n} years, plus an extra $${cur.tv}k in the final year. Payback cutoff ${cur.cut} years.\nCost of capital ${cur.r}%. Results from my Excel model: NPV ${money(n)}, IRR ${i===null?'n/a':(i*100).toFixed(1)+'%'}, payback ${pb===null?'never':pb.toFixed(1)+' yrs'}, discounted payback ${dp===null?'never':dp.toFixed(1)+' yrs'}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}. Ask me why in one question before explaining.\n`:''}Tasks: (1) explain what drives this NPV in 3 sentences; (2) give 3 realistic business scenarios with specific new values for the inputs above; (3) ask me to predict the effect of each before I run it.`}
+ const x=cur,n=npv(x),I=irr(x),pb=payback(x),dp=dpayback(x),r=x.r/100,cf=flows(x);
+ let h=tile("NPV",money(n),Math.abs(n)<0.0005?"":(n>0?"acc":"rej"),Math.abs(n)<0.0005?"NPV = 0: indifferent":(n>0?"Accept: adds value":"Reject: destroys value"));
+ if(I.v===null)h+=tile("IRR","n/a","",I.ch===0?"Cash flows never change sign":"No IRR found");
+ else if(I.all.length>1)h+=tile("IRR",I.all.slice(0,3).map(v=>(v*100).toFixed(1)+"%").join(" & "),"","Multiple IRRs: use NPV");
+ else if(I.ch>1)h+=tile("IRR",(I.v*100).toFixed(2)+"%","","Non-conventional flows: use NPV");
+ else h+=tile("IRR",(I.v*100).toFixed(2)+"%",I.v>r+1e-9?"acc":(I.v<r-1e-9?"rej":""),I.v>r+1e-9?`Pass: above ${x.r.toFixed(1)}%`:(I.v<r-1e-9?`Fail: below ${x.r.toFixed(1)}%`:"Equals required return"));
+ h+=pb===null?tile("Payback","Never","rej","Fail: not recovered"):tile("Payback",pb.toFixed(2)+" yrs",pb<=x.cut?"acc":"rej",pb<=x.cut?`Pass: within ${x.cut} yrs`:`Fail: over ${x.cut} yrs`);
+ h+=dp===null?tile("Discounted payback","Never","rej","Fail: not recovered"):tile("Discounted payback",dp.toFixed(2)+" yrs",dp<=x.cut?"acc":"rej",dp<=x.cut?`Pass: within ${x.cut} yrs`:`Fail: over ${x.cut} yrs`);
+ $("tiles").innerHTML=h;
+ const dc=$("dec");dc.className="decision "+(n>=0?"yes":"no");
+ dc.innerHTML=(n>=0?"Accept: NPV is positive, so the project adds value.":"Reject: NPV is negative, so the project destroys value.")+`<div class="sub">NPV decides. IRR gives the same answer for a normal project; payback and discounted payback are secondary screens.</div>`;
+ // table
+ const pv=cf.map((c,t)=>c/Math.pow(1+r,t));let c1=0,c2=0;
+ const f=v=>`<span class="${v<-1e-9?"neg":(v>1e-9?"pos":"")}">${(v<0?"−":"")+Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
+ let t=`<tr><th>Year</th><th>Cash flow</th><th>Cumulative CF</th><th>PV at ${x.r.toFixed(1)}%</th><th>Cumulative PV</th></tr>`;
+ cf.forEach((c,i)=>{c1+=c;c2+=pv[i];t+=`<tr><td>${i}${i===x.n&&x.tv>0?" (incl. extra)":""}${(i in x.ovr)?" (edited)":""}</td><td>${f(c)}</td><td>${f(c1)}</td><td>${f(pv[i])}</td><td>${f(c2)}</td></tr>`});
+ t+=`<tr><td><b>NPV</b></td><td></td><td></td><td></td><td><b>${money(n)}</b></td></tr>`;$("tbl").innerHTML=t;
+ drawChart(cf,I,n,x);renderShare(n);
+ $("score").textContent=total?`Predictions correct: ${right} of ${total}`:"";
+}
+function drawChart(cf,I,n,x){
+ const W=640,H=330,L=64,R=16,T=20,B=44;
+ let rmax=Math.max(25,x.r*1.6,(I.v!==null&&I.v>0&&I.all.length===1)?Math.min(I.v*100*1.6,100):0);rmax=Math.min(Math.ceil(rmax/5)*5,100);
+ const pts=[];for(let i=0;i<=100;i++){const rr=rmax*i/100;pts.push([rr,npvA(cf,rr/100)])}
+ let mn=Math.min(0,...pts.map(p=>p[1])),mx=Math.max(0,...pts.map(p=>p[1]));if(mx-mn<1e-6){mx+=1;mn-=1}const pd=(mx-mn)*.08;mn-=pd;mx+=pd;
+ const X=v=>L+(v/rmax)*(W-L-R),Y=v=>T+(mx-v)/(mx-mn)*(H-T-B);
+ let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="NPV profile chart">`;
+ for(let i=0;i<=5;i++){const xx=rmax*i/5;s+=`<line x1="${X(xx)}" y1="${T}" x2="${X(xx)}" y2="${H-B}" stroke="#F1E3D3"/><text x="${X(xx)}" y="${H-B+20}" text-anchor="middle" font-size="13" fill="#6A7385">${xx.toFixed(0)}%</text>`}
+ for(let i=0;i<=4;i++){const yy=mn+(mx-mn)*i/4;s+=`<text x="${L-8}" y="${Y(yy)+4}" text-anchor="end" font-size="12" fill="#6A7385">${Math.round(yy).toLocaleString("en-US")}</text>`}
+ s+=`<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#14213D" stroke-width="2"/>`;
+ s+=`<text x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle" font-size="13" fill="#3D4A63">Discount rate</text><text x="14" y="${(T+H-B)/2}" font-size="13" fill="#3D4A63" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">NPV ($K)</text>`;
+ s+=`<polyline fill="none" stroke="#0E7C86" stroke-width="4" stroke-linejoin="round" points="${pts.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ")}"/>`;
+ if(I.v!==null&&I.all.length===1&&I.v>=0&&I.v*100<=rmax)s+=`<circle cx="${X(I.v*100)}" cy="${Y(0)}" r="8" fill="#FFFDF9" stroke="#0E7C86" stroke-width="4"/><text x="${X(I.v*100)}" y="${Y(0)-14}" text-anchor="middle" font-size="14" font-weight="700" fill="#0E7C86">IRR ${(I.v*100).toFixed(1)}%</text>`;
+ s+=`<line x1="${X(x.r)}" y1="${Y(0)}" x2="${X(x.r)}" y2="${Y(n)}" stroke="#F26B21" stroke-width="2" stroke-dasharray="5 4"/><circle cx="${X(x.r)}" cy="${Y(n)}" r="8" fill="#F26B21"/></svg>`;
+ $("chart").innerHTML=s}
+function renderShare(n){
+ const tot=n*1000*SH.units,per=tot/(SH.shares*1e6),a=Math.abs(tot);
+ const tm=(a>=1e9?(a/1e9).toFixed(2)+"B":a>=1e6?(a/1e6).toFixed(1)+"M":Math.round(a).toLocaleString("en-US"));
+ $("shareOut").innerHTML=`<span style="color:${per<0?"#B8410E":"#0E7C86"}">${per<0?"−":"+"}$${Math.abs(per).toFixed(2)} per share</span>`;
+ $("shareNote").textContent=`Total NPV ${tot<0?"−":"+"}$${tm} ÷ ${SH.shares.toLocaleString("en-US")}M shares. Δ Share price ≈ total NPV ÷ shares outstanding, if investors believe these cash flows.`}
 function renderCards(){
- const ch=changed(),pc=$('pcard'),rc=$('rcard');
- pc.hidden=false;
- if(ch.length&&!$('instant').checked){pc.className='card predict';
-  pc.innerHTML=`<h2>Predict before you see it</h2><p style="margin:0 0 8px">You changed: ${ch.map(p=>`<b>${p.l.toLowerCase()}</b> ${p.f(cur[p.k])} to ${p.f(live[p.k])}`).join('; ')}.</p><p style="margin:0 0 10px">What happens to NPV (currently ${money(npv(cur))})?</p><div class="btns"><button data-p="up">NPV rises</button><button data-p="down">NPV falls</button><button data-p="same">About the same</button></div><p class="mute" style="margin-bottom:0">Not sure? <a href="#" id="undo">Undo the change</a></p>`;
-  pc.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>commit(b.dataset.p));
-  $('undo').onclick=e=>{e.preventDefault();live={...cur};update()}}
- else{pc.className='card idle';pc.innerHTML=`<h2>Your prediction</h2><p style="margin:0 0 10px">${$('instant').checked?'Prediction is off. Untick "Update instantly" to turn it on.':'Move a slider or pick a scenario, then predict here before the result is shown.'}</p><div class="btns"><button disabled>NPV rises</button><button disabled>NPV falls</button><button disabled>About the same</button></div>`}
- if(rev&&!ch.length){rc.hidden=false;const w={up:'rose',down:'fell',same:'barely moved'};
-  const ok=rev.pred?(rev.pred===rev.actual?'<b class="pos">Correct.</b> ':'<b class="neg">Not quite.</b> You predicted '+({up:'a rise',down:'a fall',same:'no change'}[rev.pred])+'. '):'';
-  const flip=(rev.from>=0)!==(rev.to>=0)?` <b>The decision flipped to ${rev.to>=0?'accept':'reject'}.</b>`:'';
-  rc.className='card';rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?'+':''}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(x=>`<li><b>${x.p.l}</b> ${x.p.f(x.from)} to ${x.p.f(x.to)}: ${x.d>=0?'+':''}${money(x.d)}. ${REASON[x.p.k][x.up?0:1]}</li>`).join('')}</ul><div class="btns" style="margin-top:8px"><button id="done">Done</button></div>`;$('done').onclick=()=>{rev=null;update()}}
+ const ch=changed(),pc=$("pcard"),rc=$("rcard"),on=$("predictOn").checked;
+ if(ch.length&&on){pc.className="card predict";
+  pc.innerHTML=`<h2>Predict before you see it</h2><p style="margin:0 0 8px">You changed: ${ch.map(p=>p.k==="ovr"?`<b>year-by-year cash flows</b>`:`<b>${p.l}</b> ${lab(p,cur[p.k])} to ${lab(p,live[p.k])}`).join("; ")}.</p><p style="margin:0 0 10px">What happens to NPV (currently ${money(npv(cur))})?</p><div class="btns"><button class="b-teal" data-p="up">NPV rises ↑</button><button class="b-or" data-p="down">NPV falls ↓</button><button class="b-light" data-p="same">About the same</button></div><p class="note">Not sure? <a href="#" id="undo">Undo the change</a></p>`;
+  pc.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>commit(b.dataset.p));
+  $("undo").onclick=e=>{e.preventDefault();live=JSON.parse(JSON.stringify(cur));update()}}
+ else{pc.className="card idle";pc.innerHTML=`<h2>Your prediction</h2><p style="margin:0 0 10px">${on?"Move a slider, type a value or pick a scenario, then predict here before the result is shown.":"Predict mode is off: results update instantly. Turn it on in the top bar."}</p><div class="btns"><button class="b-light" disabled>NPV rises ↑</button><button class="b-light" disabled>NPV falls ↓</button><button class="b-light" disabled>About the same</button></div>`}
+ if(rev&&!ch.length){rc.hidden=false;const w={up:"rose",down:"fell",same:"barely moved"};
+  const ok=rev.pred?(rev.pred===rev.actual?'<span class="ok">Correct.</span> ':'<span class="bad">Not quite.</span> You predicted '+({up:"a rise",down:"a fall",same:"no change"}[rev.pred])+". "):"";
+  const flip=(rev.from>=0)!==(rev.to>=0)?` <b>The decision flipped to ${rev.to>=0?"accept":"reject"}.</b>`:"";
+  rc.className="card";rc.innerHTML=`<h2>What happened</h2><p style="margin:0">${ok}NPV ${w[rev.actual]}: ${money(rev.from)} to ${money(rev.to)} (${rev.d>=0?"+":""}${money(rev.d)}).${flip}</p><ul class="drv">${rev.drivers.map(d=>`<li><b>${d.p.l}</b>${d.p.k==="ovr"?"":" "+lab(d.p,d.from)+" to "+lab(d.p,d.to)}: ${d.d>=0?"+":""}${money(d.d)}. ${REASON[d.p.k][d.up?0:1]}</li>`).join("")}</ul><div class="btns"><button class="b-dark" id="done">Done</button></div>`;
+  $("done").onclick=()=>{rev=null;update()}}
  else rc.hidden=true}
-const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function update(){if($('instant').checked&&changed().length)commit(null);syncSliders();renderResult();renderCards()}
+function update(){if(!$("predictOn").checked&&changed().length)return commit(null);syncAll();buildOvr();renderResult();renderCards()}
+
+/* ---------- scenarios ---------- */
 const SC=[
-['Rate hike (+3 points)',x=>({r:x.r+3})],
-['Cost overrun (+25%)',x=>({capex:x.capex*1.25})],
-['Recession',x=>({cf:x.cf*.85,g:-4})],
-['Strong launch',x=>({cf:x.cf*1.1,g:12})],
-['Project cut short (3 years)',x=>({n:3})],
-['Big final-year payoff',x=>({tv:500})]];
-$('scen').innerHTML=SC.map((s,i)=>`<button data-i="${i}">${s[0]}</button>`).join('');
-$('scen').querySelectorAll('button').forEach(b=>b.onclick=()=>{live={...cur};const c=SC[b.dataset.i][1](cur);P.forEach(p=>{if(c[p.k]!==undefined)live[p.k]=clamp(p,c[p.k])});rev=null;update()});
-$('instant').onchange=update;
-$('reset').onclick=()=>{cur=base();live=base();rev=null;right=0;total=0;log=[];update()};
+ ["Rate hike (+3 points)",x=>({r:x.r+3})],
+ ["Cost overrun (+25%)",x=>({capex:x.capex*1.25})],
+ ["Recession",x=>({cf:x.cf*.85,g:-4})],
+ ["Strong launch",x=>({cf:x.cf*1.1,g:12})],
+ ["Project cut short (3 years)",x=>({n:3})],
+ ["Big final-year payoff",x=>({tv:Math.max(x.tv,Math.round(x.capex*0.5))})]];
+$("scen").innerHTML=SC.map((s,i)=>`<button class="b-light" data-i="${i}">${s[0]}</button>`).join("");
+$("scen").querySelectorAll("button").forEach(b=>b.onclick=()=>{live=JSON.parse(JSON.stringify(cur));const c=SC[b.dataset.i][1](cur);
+ P.forEach(p=>{if(c[p.k]!==undefined)live[p.k]=clampP(p,c[p.k])});if(live.n<cur.n){for(const y in live.ovr)if(+y>live.n)delete live.ovr[y]}rev=null;update()});
+$("reset").onclick=()=>{cur=base();live=base();rev=null;right=0;total=0;log=[];SH=Object.assign({},SH0);update()};
+$("clearOvr").onclick=()=>{live.ovr={};rev=null;update()};
+$("predictOn").onchange=update;
+
+/* ---------- chat (unchanged connection) ---------- */
 // Set this to your deployed Cloudflare Worker URL (see worker.js). Leave empty to hide chat.
-const CHAT_URL='https://capbud-chat.kshiblu.workers.dev';
+const CHAT_URL="https://capbud-chat.kshiblu.workers.dev";
 let hist=[],busy=false;
-function addMsg(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;const l=$('chatlog');l.appendChild(d);l.scrollTop=l.scrollHeight;return d}
-async function ask(q){if(!CHAT_URL||busy)return;busy=true;addMsg('user',q);const out=addMsg('ai','Thinking...');hist.push({role:'user',content:q});hist=hist.slice(-12);if(hist[0].role!=='user')hist.shift();
- const ctx=$('ptxt').value.split('\nTasks:')[0]+(rev&&rev.entry.why?'\nStudent explanation of last change: '+rev.entry.why:'');
- try{const r=await fetch(CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:hist,context:ctx})});
-  if(!r.ok)throw new Error(String(r.status));const j=await r.json();out.textContent=j.text;hist.push({role:'assistant',content:j.text})}
- catch(e){hist.pop();out.textContent=e.message==='429'?'Too many requests. Wait a minute and try again.':'Chat is unavailable right now. Check your internet connection.'}
- finally{busy=false;$('chatlog').scrollTop=1e6}}
-document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>ask(b.dataset.q));
-const send=()=>{const q=$('aiq').value.trim();if(q){$('aiq').value='';ask(q)}};
-$('aisend').onclick=send;
-$('aiq').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};
-$('aiclear').onclick=()=>{hist=[];$('chatlog').innerHTML=''};
-function setAI(on,msg){document.querySelectorAll('#aicard button,#aiq').forEach(b=>b.disabled=!on);$('aist').textContent=msg}
-if(CHAT_URL)setAI(true,'Ask anything. The assistant sees your current numbers but never recalculates them.');else{$('aicard').hidden=true}
-buildSliders();update();
-</script></body></html>
+function context(){const x=cur,n=npv(x),I=irr(x),pb=payback(x),dp=dpayback(x);
+ const ov=Object.keys(x.ovr).length?` Edited years: ${Object.entries(x.ovr).map(([y,v])=>"Year "+y+" = $"+v+"k").join(", ")}.`:"";
+ return `You are helping me teach capital budgeting. Do NOT recompute NPV; use my figures.\nProject: initial investment $${x.capex}k at Year 0, then net cash flows (already include taxes, working capital and every other incremental effect) of $${x.cf}k in year 1 growing ${x.g}%/yr for ${x.n} years, plus an extra $${x.tv}k in the final year.${ov} Payback cutoff ${x.cut} years.\nCost of capital ${x.r}%. Results from my model: NPV ${money(n)}, IRR ${I.v===null?"n/a":(I.v*100).toFixed(1)+"%"}, payback ${pb===null?"never":pb.toFixed(1)+" yrs"}, discounted payback ${dp===null?"never":dp.toFixed(1)+" yrs"}.\n${rev?`Last change: NPV moved from ${money(rev.from)} to ${money(rev.to)}. Ask me why in one question before explaining.\n`:""}`}
+function addMsg(role,text){const d=document.createElement("div");d.className="msg "+role;d.textContent=text;const l=$("chatlog");l.appendChild(d);l.scrollTop=l.scrollHeight;return d}
+async function ask(q){if(!CHAT_URL||busy)return;busy=true;addMsg("user",q);const out=addMsg("ai","Thinking...");hist.push({role:"user",content:q});hist=hist.slice(-12);if(hist[0].role!=="user")hist.shift();
+ try{const r=await fetch(CHAT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:hist,context:context()})});
+  if(!r.ok)throw new Error(String(r.status));const j=await r.json();out.textContent=j.text;hist.push({role:"assistant",content:j.text})}
+ catch(e){hist.pop();out.textContent=e.message==="429"?"Too many requests. Wait a minute and try again.":"Chat is unavailable right now. Check your internet connection."}
+ finally{busy=false;$("chatlog").scrollTop=1e6}}
+document.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>ask(b.dataset.q));
+const send=()=>{const q=$("aiq").value.trim();if(q){$("aiq").value="";ask(q)}};
+$("aisend").onclick=send;
+$("aiq").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
+$("aiclear").onclick=()=>{hist=[];$("chatlog").innerHTML=""};
+function setAI(on,msg){document.querySelectorAll("#aicard button,#aiq").forEach(b=>b.disabled=!on);$("aist").textContent=msg}
+if(CHAT_URL)setAI(true,"Ask anything. The assistant sees your current numbers but never recalculates them.");else $("aicard").hidden=true;
+
+/* ---------- start ---------- */
+P.forEach(p=>buildField(p,$("fields"),false));
+SHP.forEach(p=>buildField(p,$("share"),true));
+update();
+})();
+</script>
+</body>
+</html>
